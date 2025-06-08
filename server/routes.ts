@@ -9,6 +9,7 @@ import { openaiService } from "./services/openai";
 import { calendarService } from "./services/calendar";
 import { automationService } from "./services/automation";
 import { followUpJob } from "./jobs/followUp";
+import { emailService } from "./services/email";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -173,6 +174,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Voice webhook error:", error);
       res.status(500).json({ error: "Failed to process voice call" });
+    }
+  });
+
+  // Email webhook for capturing email inquiries
+  app.post("/api/webhooks/email", async (req, res) => {
+    try {
+      const { from, subject, text, html } = req.body;
+      
+      await emailService.processEmailInquiry({
+        from,
+        subject,
+        body: text || html,
+        receivedAt: new Date()
+      });
+
+      res.status(200).send("OK");
+    } catch (error) {
+      console.error("Email webhook error:", error);
+      res.status(500).json({ error: "Failed to process email" });
+    }
+  });
+
+  // Test endpoint to simulate email inquiries
+  app.post("/api/simulate/email", async (req, res) => {
+    try {
+      const { from, subject, body } = req.body;
+      await emailService.simulateEmailInquiry(from, subject, body);
+      res.json({ message: "Email inquiry processed" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to simulate email" });
     }
   });
 

@@ -91,16 +91,54 @@ export function AISuggestions() {
                   </p>
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  // Navigate to lead details or take action
-                  window.location.href = `#lead-${suggestion.leadId}`;
-                }}
-              >
-                View Lead
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    // Navigate to lead details
+                    window.location.href = `#lead-${suggestion.leadId}`;
+                  }}
+                >
+                  View Lead
+                </Button>
+                {suggestion.type === "urgent" && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => {
+                      // Quick action for urgent leads
+                      window.location.href = `tel:${suggestion.leadId}`;
+                    }}
+                  >
+                    Call Now
+                  </Button>
+                )}
+                {suggestion.type === "opportunity" && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => {
+                      // Send booking link or schedule appointment
+                      alert("Send booking link functionality");
+                    }}
+                  >
+                    Send Booking
+                  </Button>
+                )}
+                {suggestion.type === "follow_up" && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => {
+                      // Send follow-up message
+                      alert("Send follow-up message functionality");
+                    }}
+                  >
+                    Follow Up
+                  </Button>
+                )}
+              </div>
             </div>
           ))
         )}
