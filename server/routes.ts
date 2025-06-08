@@ -266,9 +266,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ success: true, message: smsMessage });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send message:", error);
-      res.status(500).json({ error: "Failed to send message" });
+      
+      // Provide specific error messages for different failure types
+      if (error.message?.includes("needs to be verified")) {
+        res.status(400).json({ 
+          error: "Phone number verification required",
+          details: "Trial accounts can only send to verified numbers. Please verify this number in your Twilio console or upgrade your account."
+        });
+      } else if (error.message?.includes("Invalid phone number")) {
+        res.status(400).json({ error: "Invalid phone number format" });
+      } else {
+        res.status(500).json({ 
+          error: "Message delivery failed", 
+          details: error.message || "Unknown error occurred"
+        });
+      }
     }
   });
 

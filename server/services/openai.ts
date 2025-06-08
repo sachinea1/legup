@@ -65,10 +65,22 @@ Be helpful, professional, and concise. If the message is unclear or seems urgent
         requiresHuman: result.requiresHuman || false,
         suggestedActions: result.suggestedActions || [],
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to parse SMS intent:", error);
       
-      // Fallback response for errors
+      // Handle specific OpenAI errors
+      if (error.code === 'insufficient_quota') {
+        console.warn("OpenAI quota exceeded - using fallback response");
+        return {
+          intent: "booking_inquiry",
+          confidence: 0.5,
+          response: "Thank you for your message! We'll get back to you within 24 hours to discuss your cleaning needs.",
+          requiresHuman: true,
+          suggestedActions: ["manual_review"],
+        };
+      }
+      
+      // Fallback response for other errors
       return {
         intent: "other",
         confidence: 0.1,

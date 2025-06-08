@@ -57,17 +57,22 @@ export default function Leads() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: ({ phone, message }: { phone: string; message: string }) =>
-      fetch("/api/messages", {
+    mutationFn: async ({ phone, message }: { phone: string; message: string }) => {
+      const response = await fetch("/api/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ phone, message }),
-      }).then(res => {
-        if (!res.ok) throw new Error('Failed to send message');
-        return res.json();
-      }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to send message');
+      }
+      
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
       toast({
@@ -75,10 +80,12 @@ export default function Leads() {
         description: "SMS message sent successfully",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
+        title: "Message failed",
+        description: error.message.includes("verification") 
+          ? "Phone number needs verification in Twilio console for trial accounts"
+          : error.message,
         variant: "destructive",
       });
     },
