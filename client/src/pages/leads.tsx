@@ -18,6 +18,7 @@ import { manualLeadSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhoneNumber, displayPhoneNumber } from "@/lib/phone";
 
 export default function Leads() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -686,8 +687,20 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
   });
 
   const handleSubmit = (data: InsertLead) => {
-    onSubmit(data);
-    form.reset();
+    try {
+      // Format phone number to E.164 before submission
+      const formattedData = {
+        ...data,
+        phone: formatPhoneNumber(data.phone)
+      };
+      onSubmit(formattedData);
+      form.reset();
+    } catch (error) {
+      console.error("Phone formatting error:", error);
+      // Submit original data if formatting fails
+      onSubmit(data);
+      form.reset();
+    }
   };
 
   return (

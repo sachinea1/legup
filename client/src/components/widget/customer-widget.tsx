@@ -12,6 +12,7 @@ import { ArrowLeft, ArrowRight, Home, Sparkles, Package, Shield, Star, Clock } f
 import { widgetFormSchema, type WidgetFormData } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatPhoneNumber } from "@/lib/phone";
 
 interface CustomerWidgetProps {
   standalone?: boolean;

@@ -21,8 +21,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schema = isFromWidget ? widgetFormSchema : manualLeadSchema;
       const validatedData = schema.parse(req.body);
       
+      // Format phone number to E.164 format
+      const formattedPhone = twilioService.formatPhoneNumber(validatedData.phone);
+      
       const lead = await storage.createLead({
         ...validatedData,
+        phone: formattedPhone,
         status: validatedData.status || "new",
         source: validatedData.source || (isFromWidget ? "widget" : "manual")
       });
