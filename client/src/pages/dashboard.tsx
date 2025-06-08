@@ -4,6 +4,7 @@ import { StatsCards } from "@/components/dashboard/stats-cards";
 import { LeadsTable } from "@/components/dashboard/leads-table";
 import { MessagesPanel } from "@/components/dashboard/messages-panel";
 import { CalendarView } from "@/components/dashboard/calendar-view";
+import { AISuggestions } from "@/components/dashboard/ai-suggestions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomerWidget } from "@/components/widget/customer-widget";
@@ -64,6 +65,11 @@ export default function Dashboard() {
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Dashboard Overview</h2>
             <StatsCards />
+          </div>
+
+          {/* AI Suggestions */}
+          <div className="mb-8">
+            <AISuggestions />
           </div>
 
           {/* Two Column Layout */}

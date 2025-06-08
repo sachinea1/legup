@@ -190,7 +190,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create new appointment
   app.post("/api/appointments", async (req, res) => {
     try {
-      const appointmentData = req.body;
+      const appointmentData = {
+        ...req.body,
+        scheduledDate: new Date(req.body.scheduledDate)
+      };
       console.log("Creating appointment with data:", appointmentData);
       const appointment = await storage.createAppointment(appointmentData);
       
