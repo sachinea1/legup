@@ -14,7 +14,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Lead, InsertLead } from "@shared/schema";
-import { insertLeadSchema } from "@shared/schema";
+import { manualLeadSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -655,7 +655,7 @@ function LeadDetailsModal({
 
 function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
   const form = useForm<InsertLead>({
-    resolver: zodResolver(insertLeadSchema),
+    resolver: zodResolver(manualLeadSchema),
     defaultValues: {
       name: "",
       phone: "",

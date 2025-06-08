@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertLeadSchema, widgetFormSchema } from "@shared/schema";
+import { insertLeadSchema, widgetFormSchema, manualLeadSchema } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { twilioService } from "./services/twilio";
@@ -16,12 +16,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Lead intake endpoint
   app.post("/api/leads", async (req, res) => {
     try {
-      const validatedData = widgetFormSchema.parse(req.body);
+      // Use different validation based on source
+      const isFromWidget = req.body.source === "widget";
+      const schema = isFromWidget ? widgetFormSchema : manualLeadSchema;
+      const validatedData = schema.parse(req.body);
       
       const lead = await storage.createLead({
         ...validatedData,
-        status: "new",
-        source: "widget"
+        status: validatedData.status || "new",
+        source: validatedData.source || (isFromWidget ? "widget" : "manual")
       });
 
       // Auto-qualify new lead and schedule follow-ups

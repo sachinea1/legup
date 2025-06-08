@@ -107,6 +107,10 @@ export const insertLeadSchema = createInsertSchema(leads).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  rooms: z.string().optional(),
+  preferredDate: z.string().optional(),
+  email: z.string().optional(),
 });
 
 export const insertAppointmentSchema = createInsertSchema(appointments).omit({
@@ -141,6 +145,18 @@ export const widgetFormSchema = insertLeadSchema.extend({
   }),
   rooms: z.string().min(1, "Please specify number of rooms"),
   preferredDate: z.string().min(1, "Please select a preferred date"),
+});
+
+// Manual lead creation schema (less strict validation)
+export const manualLeadSchema = insertLeadSchema.extend({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  serviceType: z.enum(["regular", "deep", "moveout", "commercial"], {
+    required_error: "Please select a service type",
+  }),
+  rooms: z.string().optional(),
+  preferredDate: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
 });
 
 // Types
