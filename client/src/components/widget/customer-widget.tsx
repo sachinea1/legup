@@ -38,7 +38,13 @@ export function CustomerWidget({ standalone = false, onSuccess }: CustomerWidget
 
   const createLeadMutation = useMutation({
     mutationFn: async (data: WidgetFormData) => {
-      return apiRequest("POST", "/api/leads", data);
+      // Format phone number to E.164 before submission
+      const formattedData = {
+        ...data,
+        phone: formatPhoneNumber(data.phone),
+        source: "widget"
+      };
+      return apiRequest("POST", "/api/leads", formattedData);
     },
     onSuccess: () => {
       toast({
