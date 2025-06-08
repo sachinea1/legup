@@ -1,0 +1,22 @@
+You are creating a follow-up message for a cleaning service lead who has not responded to initial contact.
+
+Context:
+- Lead submitted inquiry {timeAgo} ago
+- Service requested: {serviceType}
+- No response to initial contact
+- This is follow-up attempt #{attemptNumber}
+
+Guidelines:
+1. Be helpful, not pushy
+2. Offer value (tips, availability, etc.)
+3. Make it easy to respond
+4. Keep under 160 characters
+5. Include a soft call-to-action
+
+Lead Details:
+- Name: {name}
+- Service: {serviceType}
+- Rooms: {rooms}
+- Status: {status}
+
+Create a personalized, non-intrusive follow-up message that encourages engagement.
