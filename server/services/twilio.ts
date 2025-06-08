@@ -1,4 +1,5 @@
-// Simplified Twilio service for development
+import twilio from 'twilio';
+
 class TwilioService {
   private client: any;
 
@@ -12,18 +13,8 @@ class TwilioService {
       return;
     }
 
-    // In development, we'll mock the Twilio client
-    this.client = {
-      messages: {
-        create: async (options: any) => {
-          console.log(`Mock SMS sent to ${options.to}: ${options.body}`);
-          return { sid: `mock_${Date.now()}` };
-        },
-        fetch: async (sid: string) => {
-          return { status: "delivered" };
-        }
-      }
-    };
+    console.log("Initializing Twilio with live credentials...");
+    this.client = twilio(accountSid, authToken);
   }
 
   async sendSms(to: string, body: string): Promise<string | null> {
