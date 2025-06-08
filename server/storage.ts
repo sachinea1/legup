@@ -177,11 +177,11 @@ export class DatabaseStorage implements IStorage {
 
   // Availability operations
   async getAvailability(date: string): Promise<Availability | undefined> {
-    const [availability] = await db
+    const [result] = await db
       .select()
       .from(availability)
       .where(eq(availability.date, date));
-    return availability || undefined;
+    return result || undefined;
   }
 
   async setAvailability(insertAvailability: InsertAvailability): Promise<Availability> {
@@ -193,7 +193,12 @@ export class DatabaseStorage implements IStorage {
     if (existing) {
       const [updated] = await db
         .update(availability)
-        .set({ ...insertAvailability, updatedAt: new Date() })
+        .set({ 
+          timeSlots: insertAvailability.timeSlots,
+          isBlocked: insertAvailability.isBlocked,
+          reason: insertAvailability.reason,
+          updatedAt: new Date() 
+        })
         .where(eq(availability.date, insertAvailability.date))
         .returning();
       return updated;
