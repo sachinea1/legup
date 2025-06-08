@@ -236,6 +236,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send SMS message from leads page
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const { phone, message } = req.body;
+      
+      // Find the lead by phone number
+      const leads = await storage.getLeads();
+      const lead = leads.find(l => l.phone === phone);
+      
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found for this phone number" });
+      }
+
+      // Send SMS via Twilio
+      const messageSid = await twilioService.sendSms(phone, message);
+      
+      // Store the outbound message in database
+      const smsMessage = await storage.createSmsMessage({
+        leadId: lead.id,
+        phone: phone,
+        direction: "outbound",
+        content: message,
+        twilioSid: messageSid || undefined,
+        status: "sent",
+      });
+
+      res.json({ success: true, message: smsMessage });
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      res.status(500).json({ error: "Failed to send message" });
+    }
+  });
+
   // Get appointments for a specific date
   app.get("/api/appointments", async (req, res) => {
     try {

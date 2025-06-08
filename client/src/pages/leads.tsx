@@ -8,19 +8,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Phone, Mail, MapPin, Calendar, DollarSign, MessageSquare, User, Clock, AlertTriangle } from "lucide-react";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Phone, Mail, MapPin, Calendar, DollarSign, MessageSquare, User, Clock, AlertTriangle, Plus } from "lucide-react";
 import { useState } from "react";
-import type { Lead } from "@shared/schema";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import type { Lead, InsertLead } from "@shared/schema";
+import { insertLeadSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Leads() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
 
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["/api/leads"],
@@ -57,6 +64,27 @@ export default function Leads() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      toast({
+        title: "Message sent",
+        description: "SMS message sent successfully",
+      });
+    },
+  });
+
+  const createLeadMutation = useMutation({
+    mutationFn: (leadData: InsertLead) =>
+      apiRequest("/api/leads", {
+        method: "POST",
+        body: JSON.stringify(leadData),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setShowNewLeadDialog(false);
+      toast({
+        title: "Lead created",
+        description: "New lead has been added successfully",
+      });
     },
   });
 
@@ -128,8 +156,27 @@ export default function Leads() {
           <h1 className="text-3xl font-bold">Leads Management</h1>
           <p className="text-muted-foreground">Manage and track all your cleaning service leads</p>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {filteredLeads.length} of {leads?.length || 0} leads
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-muted-foreground">
+            {filteredLeads.length} of {leads?.length || 0} leads
+          </div>
+          <Dialog open={showNewLeadDialog} onOpenChange={setShowNewLeadDialog}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add New Lead
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Add New Lead</DialogTitle>
+                <DialogDescription>
+                  Create a new lead manually for your cleaning service business
+                </DialogDescription>
+              </DialogHeader>
+              <NewLeadForm onSubmit={(data) => createLeadMutation.mutate(data)} />
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -577,5 +624,179 @@ function LeadDetailsModal({
         </div>
       </TabsContent>
     </Tabs>
+  );
+}
+
+function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
+  const form = useForm<InsertLead>({
+    resolver: zodResolver(insertLeadSchema),
+    defaultValues: {
+      name: "",
+      phone: "",
+      email: "",
+      serviceType: "regular",
+      rooms: "",
+      address: "",
+      notes: "",
+      priority: "normal",
+      status: "new",
+      source: "manual",
+    },
+  });
+
+  const handleSubmit = (data: InsertLead) => {
+    onSubmit(data);
+    form.reset();
+  };
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name *</FormLabel>
+                <FormControl>
+                  <Input placeholder="Customer name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="phone"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Phone *</FormLabel>
+                <FormControl>
+                  <Input placeholder="(555) 123-4567" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input placeholder="customer@email.com" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="serviceType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Service Type *</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select service type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="regular">Regular Cleaning</SelectItem>
+                    <SelectItem value="deep">Deep Cleaning</SelectItem>
+                    <SelectItem value="moveout">Move-out Cleaning</SelectItem>
+                    <SelectItem value="commercial">Commercial Cleaning</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="priority"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Priority</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="rooms"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Rooms/Size</FormLabel>
+                <FormControl>
+                  <Input placeholder="3 bedrooms, 2 bathrooms" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="address"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Address</FormLabel>
+              <FormControl>
+                <Input placeholder="123 Main Street, City, State" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="notes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Notes</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Additional information about the lead..."
+                  rows={3}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button type="button" variant="outline" onClick={() => form.reset()}>
+            Cancel
+          </Button>
+          <Button type="submit">Create Lead</Button>
+        </div>
+      </form>
+    </Form>
   );
 }
