@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Phone, Mail, MapPin, Calendar, DollarSign, MessageSquare, User, Clock, AlertTriangle, Plus } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, DollarSign, MessageSquare, User, Clock, AlertTriangle, Plus, Info } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -184,6 +184,14 @@ export default function Leads() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <strong>SMS Setup:</strong> Trial accounts require phone number verification in Twilio console. 
+          For production use, upgrade your Twilio account to send to any number.
+        </AlertDescription>
+      </Alert>
+      
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Leads Management</h1>
