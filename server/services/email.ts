@@ -87,7 +87,7 @@ class EmailService {
         // Create new lead from email
         const newLead = await storage.createLead({
           name: parsedLead.name || "Email Inquiry",
-          phone: parsedLead.phone || "email",
+          phone: (parsedLead.phone || "email").substring(0, 20),
           email: parsedLead.email,
           serviceType: parsedLead.serviceType,
           rooms: "To be determined",
@@ -100,7 +100,7 @@ class EmailService {
         // Create message record
         await storage.createSmsMessage({
           leadId: newLead.id,
-          phone: parsedLead.phone || "email",
+          phone: (parsedLead.phone || "email").substring(0, 20),
           direction: "inbound",
           content: `Email: ${emailData.subject}\n${emailData.body}`.substring(0, 500),
           status: "received",
