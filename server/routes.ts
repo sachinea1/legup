@@ -73,6 +73,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update lead details
+  app.patch("/api/leads/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      const lead = await storage.updateLead(parseInt(id), updates);
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+      
+      res.json(lead);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update lead" });
+    }
+  });
+
   // Get availability for date range
   app.get("/api/availability", async (req, res) => {
     try {

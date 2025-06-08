@@ -1,31 +1,37 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { BarChart3, Users, Calendar, MessageSquare, Settings } from "lucide-react";
+import { Link, useLocation } from "wouter";
 
 export function Sidebar() {
+  const [location] = useLocation();
+
   const menuItems = [
     {
       icon: BarChart3,
       label: "Dashboard",
-      href: "#",
-      active: true,
+      href: "/dashboard",
+      active: location === "/" || location === "/dashboard",
     },
     {
       icon: Users,
       label: "Leads",
-      href: "#",
-      badge: "12",
+      href: "/leads",
+      active: location === "/leads",
+      badge: "5",
       badgeVariant: "bg-amber-500 text-white" as const,
     },
     {
       icon: Calendar,
       label: "Calendar",
       href: "#",
+      active: false,
     },
     {
       icon: MessageSquare,
       label: "Messages",
       href: "#",
+      active: false,
       badge: "3",
       badgeVariant: "bg-green-500 text-white" as const,
     },
@@ -33,6 +39,7 @@ export function Sidebar() {
       icon: Settings,
       label: "Settings",
       href: "#",
+      active: false,
     },
   ];
 
@@ -41,23 +48,42 @@ export function Sidebar() {
       <div className="p-6">
         <nav className="space-y-2">
           {menuItems.map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className={`px-3 py-2 rounded-lg flex items-center transition-colors ${
-                item.active
-                  ? "bg-blue-600 text-white"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-            >
-              <item.icon className="w-5 h-5 mr-3" />
-              <span className="flex-1">{item.label}</span>
-              {item.badge && (
-                <Badge className={`text-xs px-2 py-1 ${item.badgeVariant}`}>
-                  {item.badge}
-                </Badge>
-              )}
-            </a>
+            item.href === "#" ? (
+              <div
+                key={item.label}
+                className={`px-3 py-2 rounded-lg flex items-center transition-colors ${
+                  item.active
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <item.icon className="w-5 h-5 mr-3" />
+                <span className="flex-1">{item.label}</span>
+                {item.badge && (
+                  <Badge className={`text-xs px-2 py-1 ${item.badgeVariant}`}>
+                    {item.badge}
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <Link
+                key={item.label}
+                href={item.href}
+                className={`px-3 py-2 rounded-lg flex items-center transition-colors ${
+                  item.active
+                    ? "bg-blue-600 text-white"
+                    : "text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                <item.icon className="w-5 h-5 mr-3" />
+                <span className="flex-1">{item.label}</span>
+                {item.badge && (
+                  <Badge className={`text-xs px-2 py-1 ${item.badgeVariant}`}>
+                    {item.badge}
+                  </Badge>
+                )}
+              </Link>
+            )
           ))}
         </nav>
         
