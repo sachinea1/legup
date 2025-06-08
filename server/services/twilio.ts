@@ -2,22 +2,29 @@ import twilio from 'twilio';
 
 class TwilioService {
   private client: any;
+  private initialized = false;
 
-  constructor() {
+  private initialize() {
+    if (this.initialized) return;
+    
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
 
     if (!accountSid || !authToken) {
       console.warn("Twilio credentials not found. SMS features will be disabled.");
       this.client = null;
+      this.initialized = true;
       return;
     }
 
     console.log("Initializing Twilio with live credentials...");
     this.client = twilio(accountSid, authToken);
+    this.initialized = true;
   }
 
   async sendSms(to: string, body: string): Promise<string | null> {
+    this.initialize();
+    
     try {
       if (!this.client) {
         console.log(`Mock SMS to ${to}: ${body}`);
@@ -44,6 +51,8 @@ class TwilioService {
   }
 
   async getMessageStatus(messageSid: string): Promise<string | null> {
+    this.initialize();
+    
     try {
       if (!this.client) {
         throw new Error("Twilio client not initialized");

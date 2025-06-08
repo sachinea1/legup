@@ -1,7 +1,18 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { followUpJob } from "./jobs/followUp";
+
+// Load environment variables from root directory
+console.log('Current working directory:', process.cwd());
+const result = config({ path: '.env' });
+if (result.error) {
+  console.log('Dotenv error:', result.error);
+} else {
+  console.log('Environment loaded successfully');
+}
+console.log('TWILIO_ACCOUNT_SID present:', !!process.env.TWILIO_ACCOUNT_SID);
 
 const app = express();
 app.use(express.json());
