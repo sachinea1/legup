@@ -1,0 +1,43 @@
+I want to build a full-stack MVP for a cleaning-services automation platform. Please generate a complete Replit project with:
+
+1. **Tech Stack & Project Setup**  
+   - Frontend: React (create-react-app or Vite) with a chat/widget component and an admin dashboard  
+   - Backend: Node.js + Express, with REST endpoints under `/api`  
+   - Database: PostgreSQL via Prisma ORM (or MongoDB + Mongoose if you prefer)  
+   - Environment: `.env` with keys for TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, OPENAI_API_KEY, DATABASE_URL, GOOGLE_OAUTH_CREDENTIALS  
+   - Build & run scripts in `package.json` for `dev`, `start`, and `migrate` (Prisma)  
+
+2. **Core Features**  
+   - **Lead Intake Endpoint** (`POST /api/leads`):  
+       • Validates `name`, `phone`, `serviceType`, `rooms`, `preferredDate`  
+       • Stores in DB with status `new`  
+   - **Smart Widget** (`src/widget/Widget.jsx`):  
+       • UI: multi-step form or chat UI that asks those questions and calls `/api/leads`  
+       • Calendar availability check via `GET /api/availability` (reads Google Calendar busy slots)  
+   - **SMS Webhook** (`POST /api/webhooks/sms`):  
+       • Integrate Twilio webhook to capture inbound SMS  
+       • Use OpenAI GPT-3.5-turbo to parse intent, then reply with available slots or follow-up questions  
+   - **Missed-Call Handler** (`POST /api/webhooks/voice`):  
+       • Log missed calls, create a lead record if number unknown, send SMS recovery link  
+   - **Follow-Up Cron** (`/jobs/followUp.js`):  
+       • Runs hourly, picks leads with `status=new` older than X hours, sends templated SMS via Twilio  
+   - **Dashboard** (`src/dashboard`):  
+       • Leads table with filters (new, contacted, booked, completed) and Next Action  
+       • Calendar view embedding Google Calendar or custom grid  
+       • Inbox view showing SMS threads with quick-reply buttons using GPT suggestions  
+   - **Calendar Sync & Reminders** (`/services/calendar.js`):  
+       • OAuth2 to connect Google Calendar  
+       • Create events for booked leads  
+       • Schedule SMS/email reminders 24 h and 1 h before each event  
+
+3. **Project Structure & Tooling**  
+   - Monorepo or `/client` + `/server` folders, each with own `package.json`  
+   - ESLint + Prettier configuration  
+   - GitHub Actions CI: `lint`, `test`, `build` steps (see Replit docs for syntax)  
+   - README with setup instructions, env vars, and run commands  
+
+4. **Prompt Engineering & Comments**  
+   - Inline comments describing GPT prompts used for SMS parsing and follow-up messages  
+   - Example `.prompt` files under `/prompts` for each AI use case (intake, follow-up, missed call, review request)
+
+Please scaffold the entire project: file structure, boilerplate code, key modules, and a working “Hello, world” flow that captures a lead via the widget and displays it in the dashboard. 
