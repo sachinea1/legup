@@ -58,9 +58,15 @@ export default function Leads() {
 
   const sendMessageMutation = useMutation({
     mutationFn: ({ phone, message }: { phone: string; message: string }) =>
-      apiRequest("/api/messages", {
+      fetch("/api/messages", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ phone, message }),
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed to send message');
+        return res.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
@@ -69,13 +75,26 @@ export default function Leads() {
         description: "SMS message sent successfully",
       });
     },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to send message. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const createLeadMutation = useMutation({
     mutationFn: (leadData: InsertLead) =>
-      apiRequest("/api/leads", {
+      fetch("/api/leads", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(leadData),
+      }).then(res => {
+        if (!res.ok) throw new Error('Failed to create lead');
+        return res.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
@@ -84,6 +103,13 @@ export default function Leads() {
       toast({
         title: "Lead created",
         description: "New lead has been added successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create lead. Please try again.",
+        variant: "destructive",
       });
     },
   });

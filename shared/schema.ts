@@ -9,7 +9,7 @@ export const leads = pgTable("leads", {
   phone: varchar("phone", { length: 20 }).notNull(),
   email: text("email"),
   serviceType: text("service_type").notNull(),
-  rooms: text("rooms").notNull(),
+  rooms: text("rooms"),
   preferredDate: text("preferred_date"),
   address: text("address"),
   status: text("status").notNull().default("new"), // new, contacted, booked, completed, cancelled
