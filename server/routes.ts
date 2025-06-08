@@ -165,33 +165,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { From, CallStatus } = req.body;
       
       if (CallStatus === "no-answer" || CallStatus === "busy") {
-        // Find or create lead
-        const existingLeads = await storage.getLeads();
-        let lead = existingLeads.find(l => l.phone === From);
-        
-        if (!lead) {
-          lead = await storage.createLead({
-            name: "Missed Call",
-            phone: From,
-            serviceType: "regular",
-            rooms: "Unknown",
-            status: "new",
-            source: "call",
-          });
-        }
-
-        // Send SMS recovery
-        const recoveryMessage = "Hi! We missed your call. Text us back or visit our booking page to schedule your cleaning service.";
-        await twilioService.sendSms(From, recoveryMessage);
-        
-        // Store the message
-        await storage.createSmsMessage({
-          leadId: lead.id,
-          phone: From,
-          direction: "outbound",
-          content: recoveryMessage,
-          status: "sent",
-        });
+        // Use automation service for missed call recovery
+        await automationService.handleMissedCall(From);
       }
 
       res.status(200).send("OK");
@@ -283,6 +258,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stats" });
+    }
+  });
+
+  // Get AI suggestions for dashboard
+  app.get("/api/suggestions", async (req, res) => {
+    try {
+      const suggestions = await automationService.getAISuggestions();
+      res.json(suggestions);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get AI suggestions" });
     }
   });
 
