@@ -207,6 +207,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test SMS functionality
+  app.post("/api/test-sms", async (req, res) => {
+    try {
+      const { phone, message } = req.body;
+      const messageSid = await twilioService.sendSms(phone, message);
+      res.json({ success: true, messageSid });
+    } catch (error) {
+      console.error("SMS test failed:", error);
+      res.status(500).json({ error: "Failed to send test SMS" });
+    }
+  });
+
   // Get appointments for a specific date
   app.get("/api/appointments", async (req, res) => {
     try {
