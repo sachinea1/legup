@@ -78,31 +78,31 @@ class EmailService {
         // Create SMS message record for email inquiry
         await storage.createSmsMessage({
           leadId: existingLead.id,
-          phone: parsedLead.email, // Use email as identifier for email messages
+          phone: (parsedLead.phone || "email").substring(0, 20),
           direction: "inbound",
-          content: `Email: ${emailData.subject}\n${emailData.body}`,
+          content: `Email: ${emailData.subject}\n${emailData.body}`.substring(0, 500),
           status: "received",
         });
       } else {
         // Create new lead from email
         const newLead = await storage.createLead({
           name: parsedLead.name || "Email Inquiry",
-          phone: parsedLead.phone || parsedLead.email,
+          phone: parsedLead.phone || "email",
           email: parsedLead.email,
           serviceType: parsedLead.serviceType,
           rooms: "To be determined",
           status: "new",
           source: "email",
           priority: parsedLead.urgency === "high" ? "urgent" : parsedLead.urgency === "low" ? "low" : "normal",
-          notes: parsedLead.message
+          notes: parsedLead.message.substring(0, 500)
         });
         
         // Create message record
         await storage.createSmsMessage({
           leadId: newLead.id,
-          phone: parsedLead.email,
+          phone: parsedLead.phone || "email",
           direction: "inbound",
-          content: `Email: ${emailData.subject}\n${emailData.body}`,
+          content: `Email: ${emailData.subject}\n${emailData.body}`.substring(0, 500),
           status: "received",
         });
       }
