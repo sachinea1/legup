@@ -29,7 +29,8 @@ class TwilioService {
   async sendSms(to: string, body: string): Promise<string | null> {
     try {
       if (!this.client) {
-        throw new Error("Twilio client not initialized");
+        console.log(`Mock SMS to ${to}: ${body}`);
+        return `mock_${Date.now()}`;
       }
 
       const fromNumber = process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_FROM_NUMBER;

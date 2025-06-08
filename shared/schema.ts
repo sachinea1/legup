@@ -135,7 +135,7 @@ export const insertFollowUpSchema = createInsertSchema(followUps).omit({
 // Widget form schema with validation
 export const widgetFormSchema = insertLeadSchema.extend({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().regex(/^\(?[\d\s\-\(\)]{10,}$/, "Please enter a valid phone number"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
   serviceType: z.enum(["regular", "deep", "moveout", "commercial"], {
     required_error: "Please select a service type",
   }),
