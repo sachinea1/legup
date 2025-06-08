@@ -214,6 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/appointments", async (req, res) => {
     try {
       const appointmentData = req.body;
+      console.log("Creating appointment with data:", appointmentData);
       const appointment = await storage.createAppointment(appointmentData);
       
       // Create Google Calendar event
@@ -236,6 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(appointment);
     } catch (error) {
+      console.error("Appointment creation error:", error);
       res.status(500).json({ error: "Failed to create appointment" });
     }
   });
