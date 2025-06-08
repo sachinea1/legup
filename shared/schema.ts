@@ -113,6 +113,8 @@ export const insertAppointmentSchema = createInsertSchema(appointments).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  scheduledDate: z.string().or(z.date()).transform(val => typeof val === 'string' ? new Date(val) : val),
 });
 
 export const insertSmsMessageSchema = createInsertSchema(smsMessages).omit({

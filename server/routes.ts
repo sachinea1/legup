@@ -7,6 +7,8 @@ import { fromZodError } from "zod-validation-error";
 import { twilioService } from "./services/twilio";
 import { openaiService } from "./services/openai";
 import { calendarService } from "./services/calendar";
+import { automationService } from "./services/automation";
+import { followUpJob } from "./jobs/followUp";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -21,13 +23,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         source: "widget"
       });
 
-      // Schedule follow-up for new leads
-      await storage.createFollowUp({
-        leadId: lead.id,
-        type: "sms",
-        scheduledFor: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours later
-        message: "Thank you for your interest! We'll contact you soon to schedule your cleaning service.",
-      });
+      // Auto-qualify new lead and schedule follow-ups
+      try {
+        await automationService.qualifyLead(lead.id);
+        await automationService.scheduleAutomaticFollowUps(lead.id);
+      } catch (error) {
+        console.error("Automation error for new lead:", error);
+      }
 
       res.json(lead);
     } catch (error) {
