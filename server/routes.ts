@@ -205,10 +205,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get leads with optional status filter
-  app.get("/api/leads", async (req, res) => {
+  app.get("/api/leads", authenticateToken, async (req, res) => {
     try {
       const { status, limit } = req.query;
       const leads = await storage.getLeads(
+        req.user!.id,
         status as string,
         limit ? parseInt(limit as string) : undefined
       );
@@ -219,12 +220,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update lead status
-  app.patch("/api/leads/:id/status", async (req, res) => {
+  app.patch("/api/leads/:id/status", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const { status } = req.body;
       
-      const lead = await storage.updateLeadStatus(parseInt(id), status);
+      const lead = await storage.updateLeadStatus(parseInt(id), req.user!.id, status);
       if (!lead) {
         return res.status(404).json({ error: "Lead not found" });
       }
@@ -236,12 +237,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update lead details
-  app.patch("/api/leads/:id", async (req, res) => {
+  app.patch("/api/leads/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
       
-      const lead = await storage.updateLead(parseInt(id), updates);
+      const lead = await storage.updateLead(parseInt(id), req.user!.id, updates);
       if (!lead) {
         return res.status(404).json({ error: "Lead not found" });
       }
@@ -286,8 +287,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "received",
       });
 
+      // For SMS webhook, assign to first available admin user (temporary solution)
+      // In production, you'd implement proper SMS routing logic
+      const adminUser = await storage.getUserByEmail("test@cleanflow.com");
+      if (!adminUser) {
+        return res.status(500).json({ error: "No admin user found" });
+      }
+
       // Find or create lead for this phone number
-      const existingLeads = await storage.getLeads();
+      const existingLeads = await storage.getLeads(adminUser.id);
       let lead = existingLeads.find(l => l.phone === From);
       
       if (!lead) {
@@ -299,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           rooms: "Unknown",
           status: "new",
           source: "sms",
-        });
+        }, adminUser.id);
       }
 
       // Link SMS to lead
@@ -524,9 +532,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get dashboard stats
-  app.get("/api/stats", async (req, res) => {
+  app.get("/api/stats", authenticateToken, async (req, res) => {
     try {
-      const stats = await storage.getLeadStats();
+      const stats = await storage.getLeadStats(req.user!.id);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stats" });

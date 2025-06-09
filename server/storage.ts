@@ -41,7 +41,7 @@ export interface IStorage {
   markFollowUpCompleted(id: number): Promise<void>;
   
   // Analytics
-  getLeadStats(): Promise<{
+  getLeadStats(ownerId: number): Promise<{
     totalLeads: number;
     newLeads: number;
     conversionRate: number;
@@ -309,13 +309,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics
-  async getLeadStats(): Promise<{
+  async getLeadStats(ownerId: number): Promise<{
     totalLeads: number;
     newLeads: number;
     conversionRate: number;
     activeBookings: number;
   }> {
-    const allLeads = await db.select().from(leads);
+    const allLeads = await db.select().from(leads).where(eq(leads.ownerId, ownerId));
     const newLeads = allLeads.filter(lead => lead.status === "new");
     const bookedLeads = allLeads.filter(lead => lead.status === "booked" || lead.status === "completed");
     
