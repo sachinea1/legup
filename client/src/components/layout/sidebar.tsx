@@ -13,11 +13,13 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  Plus
+  Plus,
+  LogOut
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { CustomerWidget } from "@/components/widget/customer-widget";
+import { useAuth } from "@/hooks/use-auth";
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -27,6 +29,7 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const [location] = useLocation();
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
+  const { user, logoutMutation } = useAuth();
 
   const menuItems = [
     {
@@ -211,11 +214,38 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             </div>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">Admin User</p>
-                <p className="text-xs text-gray-500 truncate">admin@cleanflow.com</p>
+                <p className="text-sm font-medium text-gray-800 truncate">{user?.name || 'User'}</p>
+                <p className="text-xs text-gray-500 truncate">{user?.email || 'user@cleanflow.com'}</p>
               </div>
             )}
           </div>
+          
+          {/* Logout Button */}
+          {!isCollapsed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 justify-start text-gray-600 hover:text-red-600 hover:bg-red-50"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              {logoutMutation.isPending ? 'Signing out...' : 'Sign out'}
+            </Button>
+          )}
+          
+          {isCollapsed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full mt-2 justify-center text-gray-600 hover:text-red-600 hover:bg-red-50"
+              onClick={() => logoutMutation.mutate()}
+              disabled={logoutMutation.isPending}
+              title="Sign out"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </aside>
     </>

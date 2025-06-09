@@ -23,6 +23,7 @@ function Router() {
     return (
       <Switch>
         <Route path="/widget" component={Widget} />
+        <Route path="/auth" component={AuthPage} />
       </Switch>
     );
   }
@@ -30,9 +31,9 @@ function Router() {
   return (
     <AppLayout>
       <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/dashboard" component={Dashboard} />
-        <Route path="/leads" component={Leads} />
+        <ProtectedRoute path="/" component={Dashboard} />
+        <ProtectedRoute path="/dashboard" component={Dashboard} />
+        <ProtectedRoute path="/leads" component={Leads} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
@@ -42,10 +43,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
