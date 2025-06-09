@@ -16,6 +16,7 @@ export const users = pgTable("users", {
 
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
+  ownerId: integer("owner_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
   email: text("email"),
@@ -87,6 +88,10 @@ export const followUps = pgTable("follow_ups", {
 
 // Relations
 export const leadsRelations = relations(leads, ({ many, one }) => ({
+  owner: one(users, {
+    fields: [leads.ownerId],
+    references: [users.id],
+  }),
   appointments: many(appointments),
   smsMessages: many(smsMessages),
   followUps: many(followUps),
@@ -128,6 +133,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 export const insertLeadSchema = createInsertSchema(leads).omit({
   id: true,
+  ownerId: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
