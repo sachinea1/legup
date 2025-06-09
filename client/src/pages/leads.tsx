@@ -411,9 +411,9 @@ export default function Leads() {
                   <div className="pt-4 space-y-4">
                     {/* Service and Priority Info */}
                     <div className="flex flex-wrap gap-2">
-                      <Badge variant={getPriorityColor(lead.priority)}>
+                      <Badge variant={getPriorityColor(lead.priority || 'normal')}>
                         {lead.priority === "urgent" && <AlertTriangle className="w-3 h-3 mr-1" />}
-                        {lead.priority}
+                        {lead.priority || 'normal'}
                       </Badge>
                       <Badge variant="outline">{formatServiceType(lead.serviceType)}</Badge>
                       <Badge variant="outline">{lead.source}</Badge>
@@ -529,7 +529,7 @@ function LeadDetailsModal({
     phone: lead.phone,
     address: lead.address || "",
     serviceType: lead.serviceType,
-    priority: lead.priority,
+    priority: lead.priority || "normal",
     estimatedCost: lead.estimatedCost || 0,
     rooms: lead.rooms || "",
     notes: lead.notes || "",
