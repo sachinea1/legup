@@ -1,126 +1,72 @@
-import { storage } from "../storage";
-import { openaiService } from "./openai";
+import nodemailer from 'nodemailer';
 
-interface EmailInquiry {
-  from: string;
+interface EmailOptions {
+  to: string;
   subject: string;
-  body: string;
-  receivedAt: Date;
-}
-
-interface ParsedEmailLead {
-  name?: string;
-  email: string;
-  phone?: string;
-  serviceType: "regular" | "deep" | "moveout" | "commercial";
-  message: string;
-  urgency: "low" | "normal" | "high";
+  html: string;
 }
 
 class EmailService {
-  // Parse email inquiry using AI to extract lead information
-  async parseEmailInquiry(emailData: EmailInquiry): Promise<ParsedEmailLead> {
-    try {
-      // Extract basic information from email
-      const email = emailData.from;
-      let name = email.split('@')[0].replace(/[._]/g, ' ');
-      
-      // Use subject and body to determine service type and urgency
-      const content = `${emailData.subject} ${emailData.body}`.toLowerCase();
-      
-      let serviceType: "regular" | "deep" | "moveout" | "commercial" = "regular";
-      if (content.includes("deep") || content.includes("spring")) serviceType = "deep";
-      else if (content.includes("move") || content.includes("moving")) serviceType = "moveout";
-      else if (content.includes("office") || content.includes("commercial") || content.includes("business")) serviceType = "commercial";
-      
-      let urgency: "low" | "normal" | "high" = "normal";
-      if (content.includes("urgent") || content.includes("asap") || content.includes("emergency")) urgency = "high";
-      else if (content.includes("whenever") || content.includes("no rush")) urgency = "low";
-      
-      // Extract phone number if present
-      const phoneMatch = emailData.body.match(/(\+?1?[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/);
-      const phone = phoneMatch ? phoneMatch[0].replace(/\D/g, '') : undefined;
-      
-      return {
-        name,
-        email,
-        phone,
-        serviceType,
-        message: `${emailData.subject}\n\n${emailData.body}`,
-        urgency
-      };
-    } catch (error) {
-      console.error("Email parsing error:", error);
-      return {
-        email: emailData.from,
-        serviceType: "regular",
-        message: `${emailData.subject}\n\n${emailData.body}`,
-        urgency: "normal"
-      };
+  private transporter: nodemailer.Transporter | null = null;
+  private isConfigured = false;
+
+  constructor() {
+    this.initialize();
+  }
+
+  private initialize() {
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpPort = process.env.SMTP_PORT;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+
+    if (smtpHost && smtpPort && smtpUser && smtpPass) {
+      this.transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: parseInt(smtpPort),
+        secure: parseInt(smtpPort) === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+      this.isConfigured = true;
     }
   }
 
-  // Process incoming email and create lead
-  async processEmailInquiry(emailData: EmailInquiry): Promise<void> {
-    try {
-      const parsedLead = await this.parseEmailInquiry(emailData);
-      
-      // Check if lead already exists by email
-      const existingLeads = await storage.getLeads();
-      const existingLead = existingLeads.find(l => l.email === parsedLead.email);
-      
-      if (existingLead) {
-        // Update existing lead with new message
-        await storage.updateLead(existingLead.id, {
-          notes: `${existingLead.notes || ''}\n\nNew email inquiry: ${parsedLead.message}`.trim()
-        });
-        
-        // Create SMS message record for email inquiry
-        await storage.createSmsMessage({
-          leadId: existingLead.id,
-          phone: (parsedLead.phone || "email").substring(0, 20),
-          direction: "inbound",
-          content: `Email: ${emailData.subject}\n${emailData.body}`.substring(0, 500),
-          status: "received",
-        });
-      } else {
-        // Create new lead from email
-        const newLead = await storage.createLead({
-          name: parsedLead.name || "Email Inquiry",
-          phone: (parsedLead.phone || "email").substring(0, 20),
-          email: parsedLead.email,
-          serviceType: parsedLead.serviceType,
-          rooms: "To be determined",
-          status: "new",
-          source: "email",
-          priority: parsedLead.urgency === "high" ? "urgent" : parsedLead.urgency === "low" ? "low" : "normal",
-          notes: parsedLead.message.substring(0, 500)
-        });
-        
-        // Create message record
-        await storage.createSmsMessage({
-          leadId: newLead.id,
-          phone: (parsedLead.phone || "email").substring(0, 20),
-          direction: "inbound",
-          content: `Email: ${emailData.subject}\n${emailData.body}`.substring(0, 500),
-          status: "received",
-        });
-      }
-    } catch (error) {
-      console.error("Failed to process email inquiry:", error);
+  async sendPasswordResetEmail(email: string, resetToken: string): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      console.warn('Email service not configured. Password reset email not sent.');
+      return;
     }
-  }
 
-  // Simulate email webhook for testing
-  async simulateEmailInquiry(from: string, subject: string, body: string): Promise<void> {
-    const emailData: EmailInquiry = {
-      from,
-      subject,
-      body,
-      receivedAt: new Date()
-    };
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5000'}/reset-password?token=${resetToken}`;
     
-    await this.processEmailInquiry(emailData);
+    const emailOptions: EmailOptions = {
+      to: email,
+      subject: 'Password Reset Request - CleanFlow',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Password Reset Request</h2>
+          <p>You requested a password reset for your CleanFlow account.</p>
+          <p>Click the link below to reset your password:</p>
+          <a href="${resetUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset Password</a>
+          <p>This link will expire in 1 hour.</p>
+          <p>If you didn't request this reset, please ignore this email.</p>
+        </div>
+      `,
+    };
+
+    try {
+      await this.transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        ...emailOptions,
+      });
+      console.log(`Password reset email sent to ${email}`);
+    } catch (error) {
+      console.error('Failed to send password reset email:', error);
+      throw new Error('Failed to send password reset email');
+    }
   }
 }
 

@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
-import { insertLeadSchema, widgetFormSchema, manualLeadSchema } from "@shared/schema";
+import { insertLeadSchema, widgetFormSchema, manualLeadSchema, insertUserSchema, loginSchema, passwordResetRequestSchema, passwordResetSchema } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
 import { twilioService } from "./services/twilio";
@@ -10,10 +11,164 @@ import { calendarService } from "./services/calendar";
 import { automationService } from "./services/automation";
 import { followUpJob } from "./jobs/followUp";
 import { emailService } from "./services/email";
+import { AuthService, authenticateToken } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Lead intake endpoint
+  // Rate limiting for auth endpoints
+  const authRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 attempts per window
+    message: { error: "Too many authentication attempts, please try again later" },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Auth endpoints
+  app.post("/api/auth/signup", authRateLimit, async (req, res) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(validatedData.email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User already exists with this email" });
+      }
+
+      // Hash password
+      const passwordHash = await AuthService.hashPassword(validatedData.password);
+      
+      // Create user
+      const user = await storage.createUser({
+        name: validatedData.name,
+        email: validatedData.email,
+        passwordHash,
+      });
+
+      // Generate JWT
+      const token = AuthService.generateJWT(user.id);
+
+      res.status(201).json({
+        user: { id: user.id, email: user.email, name: user.name },
+        token,
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: fromZodError(error).toString() });
+      }
+      console.error("Signup error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/login", authRateLimit, async (req, res) => {
+    try {
+      const validatedData = loginSchema.parse(req.body);
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(validatedData.email);
+      if (!user) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // Verify password
+      const isValidPassword = await AuthService.comparePassword(validatedData.password, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      // Generate JWT
+      const token = AuthService.generateJWT(user.id);
+
+      res.json({
+        user: { id: user.id, email: user.email, name: user.name },
+        token,
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: fromZodError(error).toString() });
+      }
+      console.error("Login error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/password-reset-request", authRateLimit, async (req, res) => {
+    try {
+      const validatedData = passwordResetRequestSchema.parse(req.body);
+      
+      // Find user by email
+      const user = await storage.getUserByEmail(validatedData.email);
+      if (!user) {
+        // Don't reveal if email exists or not
+        return res.json({ message: "If the email exists, a reset link has been sent" });
+      }
+
+      // Generate reset token
+      const resetToken = AuthService.generateResetToken();
+      const hashedToken = AuthService.hashResetToken(resetToken);
+      const expiryDate = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      // Store hashed token in database
+      await storage.updateUserResetToken(user.id, hashedToken, expiryDate);
+
+      // Send email with plain token
+      await emailService.sendPasswordResetEmail(user.email, resetToken);
+
+      res.json({ message: "If the email exists, a reset link has been sent" });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: fromZodError(error).toString() });
+      }
+      console.error("Password reset request error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/auth/password-reset", authRateLimit, async (req, res) => {
+    try {
+      const validatedData = passwordResetSchema.parse(req.body);
+      
+      // Hash the provided token to compare with stored hash
+      const hashedToken = AuthService.hashResetToken(validatedData.token);
+      
+      // Find user with matching reset token and check expiry
+      const users = await storage.getUserByResetToken(hashedToken);
+      if (!users || !users.resetTokenExpiry || users.resetTokenExpiry < new Date()) {
+        return res.status(400).json({ error: "Invalid or expired reset token" });
+      }
+
+      // Hash new password
+      const passwordHash = await AuthService.hashPassword(validatedData.password);
+      
+      // Update password and clear reset token
+      await storage.updateUserPassword(users.id, passwordHash);
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: fromZodError(error).toString() });
+      }
+      console.error("Password reset error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/auth/me", authenticateToken, async (req, res) => {
+    res.json({
+      user: { id: req.user!.id, email: req.user!.email, name: req.user!.name }
+    });
+  });
+
+  // Protect admin routes with authentication
+  app.use("/api/leads", authenticateToken);
+  app.use("/api/appointments", authenticateToken);
+  app.use("/api/sms", authenticateToken);
+  app.use("/api/stats", authenticateToken);
+  app.use("/api/suggestions", authenticateToken);
+  app.use("/api/messages", authenticateToken);
+
+  // Lead intake endpoint (protected)
   app.post("/api/leads", async (req, res) => {
     try {
       // Use different validation based on source
