@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Phone, Mail, MapPin, Calendar, DollarSign, MessageSquare, User, Clock, AlertTriangle, Plus, Info } from "lucide-react";
+import { Phone, Mail, MapPin, Calendar, DollarSign, MessageSquare, User, Clock, AlertTriangle, Plus, Info, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,9 +27,33 @@ export default function Leads() {
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
+  const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Helper functions for accordion
+  const toggleLeadExpansion = (leadId: number) => {
+    setExpandedLeads(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(leadId)) {
+        newSet.delete(leadId);
+      } else {
+        newSet.add(leadId);
+      }
+      return newSet;
+    });
+  };
+
+  const getUrgencyColor = (priority: string) => {
+    switch (priority) {
+      case "urgent": return "border-red-500";
+      case "high": return "border-amber-500";
+      case "normal": return "border-green-500";
+      case "low": return "border-gray-400";
+      default: return "border-gray-400";
+    }
+  };
 
   const { data: leads, isLoading } = useQuery({
     queryKey: ["/api/leads"],
@@ -264,128 +288,193 @@ export default function Leads() {
         </CardContent>
       </Card>
 
-      {/* Leads List */}
-      <div className="space-y-4">
-        {filteredLeads.map((lead: Lead) => (
-          <Card key={lead.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row justify-between gap-4">
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold capitalize">{lead.name}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant={getPriorityColor(lead.priority)}>
-                          {lead.priority === "urgent" && <AlertTriangle className="w-3 h-3 mr-1" />}
-                          {lead.priority}
-                        </Badge>
-                        <Badge variant={getStatusColor(lead.status)}>{lead.status.replace("_", " ")}</Badge>
-                        <Badge variant="outline">{formatServiceType(lead.serviceType)}</Badge>
-                        <Badge variant="outline">{lead.source}</Badge>
-                      </div>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {format(new Date(lead.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span>{lead.phone}</span>
-                    </div>
-                    {lead.email && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        <span>{lead.email}</span>
-                      </div>
-                    )}
-                    {lead.address && (
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        <span className="truncate">{lead.address}</span>
-                      </div>
-                    )}
-                    {lead.preferredDate && (
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span>{format(new Date(lead.preferredDate), "MMM d, yyyy")}</span>
-                      </div>
-                    )}
-                    {lead.estimatedCost && (
-                      <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-muted-foreground" />
-                        <span>${lead.estimatedCost}</span>
-                      </div>
-                    )}
-                    {lead.rooms && (
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-muted-foreground" />
-                        <span>{lead.rooms}</span>
-                      </div>
+      {/* Leads Accordion List */}
+      <div className="space-y-2">
+        {filteredLeads.map((lead: Lead) => {
+          const isExpanded = expandedLeads.has(lead.id);
+          
+          return (
+            <div 
+              key={lead.id} 
+              className={`border rounded-lg bg-white transition-all duration-200 ${
+                isExpanded ? 'shadow-md' : 'hover:shadow-sm'
+              } ${getUrgencyColor(lead.priority)} border-l-4`}
+            >
+              {/* Collapsed Row */}
+              <div 
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => toggleLeadExpansion(lead.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleLeadExpansion(lead.id);
+                  }
+                }}
+                tabIndex={0}
+                role="button"
+                aria-expanded={isExpanded}
+                aria-label={`Lead details for ${lead.name}`}
+              >
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  {/* Expand Icon */}
+                  <div className="flex-shrink-0">
+                    {isExpanded ? (
+                      <ChevronDown className="w-5 h-5 text-gray-500" />
+                    ) : (
+                      <ChevronRight className="w-5 h-5 text-gray-500" />
                     )}
                   </div>
-
-                  {lead.notes && (
-                    <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                      <div className="line-clamp-2">{lead.notes}</div>
-                    </div>
-                  )}
+                  
+                  {/* Name */}
+                  <div className="flex-shrink-0">
+                    <h3 className="font-semibold text-gray-900 capitalize">{lead.name}</h3>
+                  </div>
+                  
+                  {/* Submission Date */}
+                  <div className="flex-shrink-0 text-sm text-gray-500">
+                    {format(new Date(lead.createdAt), "MMM d, h:mm a")}
+                  </div>
+                  
+                  {/* Status Dropdown */}
+                  <div className="flex-shrink-0">
+                    <Select 
+                      value={lead.status} 
+                      onValueChange={(status) => {
+                        updateStatusMutation.mutate({ id: lead.id, status });
+                      }}
+                    >
+                      <SelectTrigger 
+                        className="h-8 w-32 text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">New</SelectItem>
+                        <SelectItem value="contacted">Contacted</SelectItem>
+                        <SelectItem value="qualified">Qualified</SelectItem>
+                        <SelectItem value="appointment_set">Appointment Set</SelectItem>
+                        <SelectItem value="closed_won">Closed Won</SelectItem>
+                        <SelectItem value="closed_lost">Closed Lost</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {/* Phone Number (Click-to-call) */}
+                  <div className="flex-shrink-0">
+                    <a 
+                      href={`tel:${lead.phone}`}
+                      className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {lead.phone}
+                    </a>
+                  </div>
                 </div>
-
-                <div className="flex flex-col gap-2 min-w-[120px]">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedLead(lead)}>
-                        View Details
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle className="capitalize">{selectedLead?.name}</DialogTitle>
-                        <DialogDescription>Lead Details and Actions</DialogDescription>
-                      </DialogHeader>
-                      {selectedLead && (
-                        <LeadDetailsModal
-                          lead={selectedLead}
-                          onUpdateStatus={(status) => updateStatusMutation.mutate({ id: selectedLead.id, status })}
-                          onUpdateLead={(updates) => updateLeadMutation.mutate({ id: selectedLead.id, updates })}
-                          onSendMessage={(message) => sendMessageMutation.mutate({ phone: selectedLead.phone, message })}
-                        />
-                      )}
-                    </DialogContent>
-                  </Dialog>
-
-                  <Select value={lead.status} onValueChange={(status) => updateStatusMutation.mutate({ id: lead.id, status })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="contacted">Contacted</SelectItem>
-                      <SelectItem value="qualified">Qualified</SelectItem>
-                      <SelectItem value="appointment_set">Appointment Set</SelectItem>
-                      <SelectItem value="closed_won">Closed Won</SelectItem>
-                      <SelectItem value="closed_lost">Closed Lost</SelectItem>
-                    </SelectContent>
-                  </Select>
-
+                
+                {/* Quick SMS Icon */}
+                <div className="flex-shrink-0">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    onClick={() => sendMessageMutation.mutate({
-                      phone: lead.phone,
-                      message: `Hi ${lead.name}, thanks for your interest in our ${formatServiceType(lead.serviceType).toLowerCase()} service. When would be a good time to discuss your cleaning needs?`
-                    })}
+                    className="w-8 h-8 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      sendMessageMutation.mutate({
+                        phone: lead.phone,
+                        message: `Hi ${lead.name}, thanks for your interest in our ${formatServiceType(lead.serviceType).toLowerCase()} service. When would be a good time to discuss your cleaning needs?`
+                      });
+                    }}
                     disabled={sendMessageMutation.isPending}
+                    title="Send Quick SMS"
                   >
-                    <MessageSquare className="w-4 h-4 mr-1" />
-                    Quick SMS
+                    <MessageSquare className="w-4 h-4" />
                   </Button>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              
+              {/* Expanded Details */}
+              {isExpanded && (
+                <div className="px-4 pb-4 border-t bg-gray-50/50">
+                  <div className="pt-4 space-y-4">
+                    {/* Service and Priority Info */}
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant={getPriorityColor(lead.priority)}>
+                        {lead.priority === "urgent" && <AlertTriangle className="w-3 h-3 mr-1" />}
+                        {lead.priority}
+                      </Badge>
+                      <Badge variant="outline">{formatServiceType(lead.serviceType)}</Badge>
+                      <Badge variant="outline">{lead.source}</Badge>
+                    </div>
+                    
+                    {/* Contact Details */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
+                      {lead.email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-muted-foreground" />
+                          <span>{lead.email}</span>
+                        </div>
+                      )}
+                      {lead.address && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                          <span className="truncate">{lead.address}</span>
+                        </div>
+                      )}
+                      {lead.preferredDate && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span>{lead.preferredDate}</span>
+                        </div>
+                      )}
+                      {lead.estimatedCost && (
+                        <div className="flex items-center gap-2">
+                          <DollarSign className="w-4 h-4 text-muted-foreground" />
+                          <span>${lead.estimatedCost}</span>
+                        </div>
+                      )}
+                      {lead.rooms && (
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-muted-foreground" />
+                          <span>{lead.rooms}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Notes */}
+                    {lead.notes && (
+                      <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                        <div className="line-clamp-2">{lead.notes}</div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 pt-2">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" onClick={() => setSelectedLead(lead)}>
+                            Edit Lead
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="capitalize">{selectedLead?.name}</DialogTitle>
+                            <DialogDescription>Lead Details and Actions</DialogDescription>
+                          </DialogHeader>
+                          {selectedLead && (
+                            <LeadDetailsModal
+                              lead={selectedLead}
+                              onUpdateStatus={(status) => updateStatusMutation.mutate({ id: selectedLead.id, status })}
+                              onUpdateLead={(updates) => updateLeadMutation.mutate({ id: selectedLead.id, updates })}
+                              onSendMessage={(message) => sendMessageMutation.mutate({ phone: selectedLead.phone, message })}
+                            />
+                          )}
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
         ))}
 
         {filteredLeads.length === 0 && (
