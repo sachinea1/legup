@@ -228,46 +228,68 @@ export default function Leads() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Leads Management</h1>
-          <p className="text-muted-foreground">
-            {Array.isArray(leads) ? leads.length : 0} total leads
-          </p>
         </div>
       </div>
 
       {/* Filters */}
       <Card>
         <CardContent className="p-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="search">Search</Label>
-              <Input
-                id="search"
-                placeholder="Search by name, phone, or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
+              <div>
+                <Label htmlFor="search">Search</Label>
+                <Input
+                  id="search"
+                  placeholder="Search by name, phone, or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <div>
+                <Label htmlFor="priority-filter">Priority</Label>
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div>
-              <Label htmlFor="priority-filter">Priority</Label>
-              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Priorities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
+            
+            {/* Add Lead Button and Stats */}
+            <div className="flex flex-col items-end gap-2">
+              <Dialog open={showNewLeadDialog} onOpenChange={setShowNewLeadDialog}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Lead
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Create New Lead</DialogTitle>
+                    <DialogDescription>
+                      Add a new lead to the system manually.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <NewLeadForm onSubmit={(data: InsertLead) => createLeadMutation.mutate(data)} />
+                </DialogContent>
+              </Dialog>
+              <p className="text-sm font-medium text-blue-600">
+                {Array.isArray(leads) ? leads.length : 0} total leads
+              </p>
             </div>
           </div>
           
           {/* Status Filter Buttons */}
           <div>
-            <Label>Status</Label>
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant={statusFilter === "all" ? "default" : "outline"}
                 size="sm"
