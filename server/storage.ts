@@ -1,8 +1,15 @@
-import { leads, appointments, smsMessages, availability, followUps, type Lead, type InsertLead, type Appointment, type InsertAppointment, type SmsMessage, type InsertSmsMessage, type Availability, type InsertAvailability, type FollowUp, type InsertFollowUp } from "@shared/schema";
+import { users, leads, appointments, smsMessages, availability, followUps, type User, type InsertUser, type Lead, type InsertLead, type Appointment, type InsertAppointment, type SmsMessage, type InsertSmsMessage, type Availability, type InsertAvailability, type FollowUp, type InsertFollowUp } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, asc } from "drizzle-orm";
 
 export interface IStorage {
+  // User operations
+  createUser(user: Omit<InsertUser, 'password'> & { passwordHash: string }): Promise<User>;
+  getUser(id: number): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  updateUserResetToken(id: number, token: string | null, expiry: Date | null): Promise<void>;
+  updateUserPassword(id: number, passwordHash: string): Promise<void>;
+  
   // Lead operations
   createLead(lead: InsertLead): Promise<Lead>;
   getLeads(status?: string, limit?: number): Promise<Lead[]>;
@@ -42,6 +49,39 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // User operations
+  async createUser(user: Omit<InsertUser, 'password'> & { passwordHash: string }): Promise<User> {
+    const [newUser] = await db
+      .insert(users)
+      .values(user)
+      .returning();
+    return newUser;
+  }
+
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  }
+
+  async updateUserResetToken(id: number, token: string | null, expiry: Date | null): Promise<void> {
+    await db
+      .update(users)
+      .set({ resetToken: token, resetTokenExpiry: expiry })
+      .where(eq(users.id, id));
+  }
+
+  async updateUserPassword(id: number, passwordHash: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ passwordHash, resetToken: null, resetTokenExpiry: null })
+      .where(eq(users.id, id));
+  }
+
   // Lead operations
   async createLead(insertLead: InsertLead): Promise<Lead> {
     const [lead] = await db
