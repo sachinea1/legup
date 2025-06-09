@@ -259,7 +259,12 @@ export class DatabaseStorage implements IStorage {
 
     const [created] = await db
       .insert(availability)
-      .values(insertAvailability)
+      .values({
+        date: insertAvailability.date,
+        timeSlots: insertAvailability.timeSlots,
+        isBlocked: insertAvailability.isBlocked,
+        reason: insertAvailability.reason
+      })
       .returning();
     return created;
   }

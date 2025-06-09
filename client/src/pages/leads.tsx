@@ -924,7 +924,7 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
             <FormItem>
               <FormLabel>Address</FormLabel>
               <FormControl>
-                <Input placeholder="Service address" {...field} />
+                <Input placeholder="Service address" {...field} value={field.value || ""} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -942,6 +942,7 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
                   placeholder="Additional information about the lead..."
                   rows={3}
                   {...field}
+                  value={field.value || ""}
                 />
               </FormControl>
               <FormMessage />
