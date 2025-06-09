@@ -48,242 +48,254 @@ export default function Leads() {
   const getUrgencyColor = (priority: string) => {
     switch (priority) {
       case "urgent": return "border-red-500";
-      case "high": return "border-amber-500";
-      case "normal": return "border-green-500";
-      case "low": return "border-gray-400";
-      default: return "border-gray-400";
+      case "high": return "border-orange-400";
+      case "normal": return "border-blue-400";
+      case "low": return "border-gray-300";
+      default: return "border-gray-300";
     }
   };
 
-  const { data: leads, isLoading } = useQuery({
+  // Fetch leads
+  const { data: leads = [], isLoading } = useQuery({
     queryKey: ["/api/leads"],
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) =>
-      apiRequest(`/api/leads/${id}/status`, {
-        method: "PATCH",
-        body: JSON.stringify({ status }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-    },
-  });
-
-  const updateLeadMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: number; updates: Partial<Lead> }) =>
-      apiRequest(`/api/leads/${id}`, {
-        method: "PATCH",
-        body: JSON.stringify(updates),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      setSelectedLead(null);
-    },
-  });
-
+  // Send SMS mutation
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ phone, message }: { phone: string; message: string }) => {
-      const response = await fetch("/api/messages", {
+    mutationFn: async (data: { phone: string; message: string }) => {
+      const response = await fetch("/api/sms/send", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ phone, message }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || 'Failed to send message');
-      }
-      
+      if (!response.ok) throw new Error("Failed to send SMS");
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
       toast({
-        title: "Message sent",
-        description: "SMS message sent successfully",
+        title: "SMS sent successfully",
+        description: "The message has been sent to the lead.",
       });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to send SMS";
       toast({
-        title: "Message failed",
-        description: error.message.includes("verification") 
-          ? "Phone number needs verification in Twilio console for trial accounts"
-          : error.message,
+        title: "SMS failed",
+        description: errorMessage,
         variant: "destructive",
       });
     },
   });
 
-  const createLeadMutation = useMutation({
-    mutationFn: (leadData: InsertLead) =>
-      fetch("/api/leads", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(leadData),
-      }).then(res => {
-        if (!res.ok) throw new Error('Failed to create lead');
-        return res.json();
-      }),
+  // Update lead status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async (data: { id: number; status: string }) => {
+      const response = await fetch(`/api/leads/${data.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: data.status }),
+      });
+      if (!response.ok) throw new Error("Failed to update status");
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "Status updated",
+        description: "Lead status has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error updating status",
+        description: error?.message || "Failed to update lead status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update lead mutation
+  const updateLeadMutation = useMutation({
+    mutationFn: async (data: { id: number; updates: Partial<InsertLead> }) => {
+      const response = await fetch(`/api/leads/${data.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data.updates),
+      });
+      if (!response.ok) throw new Error("Failed to update lead");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({
+        title: "Lead updated",
+        description: "Lead information has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error updating lead",
+        description: error?.message || "Failed to update lead",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create lead mutation
+  const createLeadMutation = useMutation({
+    mutationFn: async (leadData: InsertLead) => {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(leadData),
+      });
+      if (!response.ok) throw new Error("Failed to create lead");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       setShowNewLeadDialog(false);
       toast({
         title: "Lead created",
-        description: "New lead has been added successfully",
+        description: "New lead has been created successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
-        title: "Error",
-        description: "Failed to create lead. Please try again.",
+        title: "Error creating lead",
+        description: error?.message || "Failed to create lead",
         variant: "destructive",
       });
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-4 bg-muted rounded w-1/4 mb-2"></div>
-                <div className="h-3 bg-muted rounded w-1/2"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const filteredLeads = leads?.filter((lead: Lead) => {
-    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
-    const matchesPriority = priorityFilter === "all" || lead.priority === priorityFilter;
-    const matchesSearch = !searchQuery || 
-      lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.phone.includes(searchQuery) ||
-      lead.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.serviceType.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchesStatus && matchesPriority && matchesSearch;
-  }) || [];
-
+  // Helper functions
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "urgent": return "destructive";
-      case "high": return "destructive";
-      case "normal": return "secondary";
+      case "high": return "secondary";
+      case "normal": return "outline";
       case "low": return "outline";
-      default: return "secondary";
+      default: return "outline";
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "new": return "destructive";
+      case "new": return "default";
       case "contacted": return "secondary";
-      case "qualified": return "default";
+      case "qualified": return "outline";
       case "appointment_set": return "default";
       case "closed_won": return "default";
-      case "closed_lost": return "outline";
-      default: return "secondary";
+      case "closed_lost": return "destructive";
+      default: return "outline";
     }
   };
 
-  const formatServiceType = (type: string) => {
-    switch (type) {
+  const formatServiceType = (serviceType: string) => {
+    switch (serviceType) {
       case "regular": return "Regular Cleaning";
       case "deep": return "Deep Cleaning";
       case "moveout": return "Move-out Cleaning";
       case "commercial": return "Commercial Cleaning";
-      default: return type;
+      default: return serviceType;
     }
   };
 
+  // Filter leads
+  const filteredLeads = Array.isArray(leads) ? leads.filter((lead: Lead) => {
+    const matchesSearch = lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      lead.phone.includes(searchQuery) ||
+      (lead.email && lead.email.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    const matchesStatus = statusFilter === "all" || lead.status === statusFilter;
+    const matchesPriority = priorityFilter === "all" || lead.priority === priorityFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority;
+  }) : [];
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">Loading leads...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
-        <Info className="h-4 w-4" />
-        <AlertDescription>
-          <strong>SMS Setup:</strong> Trial accounts require phone number verification in Twilio console. 
-          For production use, upgrade your Twilio account to send to any number.
-        </AlertDescription>
-      </Alert>
-      
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold">Leads Management</h1>
-          <p className="text-muted-foreground">Manage and track all your cleaning service leads</p>
+          <p className="text-muted-foreground">
+            {Array.isArray(leads) ? leads.length : 0} total leads
+          </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-sm text-muted-foreground">
-            {filteredLeads.length} of {leads?.length || 0} leads
-          </div>
-          <Dialog open={showNewLeadDialog} onOpenChange={setShowNewLeadDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add New Lead
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Add New Lead</DialogTitle>
-                <DialogDescription>
-                  Create a new lead manually for your cleaning service business
-                </DialogDescription>
-              </DialogHeader>
-              <NewLeadForm onSubmit={(data) => createLeadMutation.mutate(data)} />
-            </DialogContent>
-          </Dialog>
-        </div>
+        <Dialog open={showNewLeadDialog} onOpenChange={setShowNewLeadDialog}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Lead
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Create New Lead</DialogTitle>
+              <DialogDescription>
+                Add a new lead to the system manually.
+              </DialogDescription>
+            </DialogHeader>
+            <NewLeadForm onSubmit={(data: InsertLead) => createLeadMutation.mutate(data)} />
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label htmlFor="search">Search</Label>
               <Input
-                placeholder="Search leads by name, phone, email, or service..."
+                id="search"
+                placeholder="Search by name, phone, or email..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="qualified">Qualified</SelectItem>
-                <SelectItem value="appointment_set">Appointment Set</SelectItem>
-                <SelectItem value="closed_won">Closed Won</SelectItem>
-                <SelectItem value="closed_lost">Closed Lost</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="All Priorities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="urgent">Urgent</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="normal">Normal</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
+            <div>
+              <Label htmlFor="status-filter">Status</Label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="contacted">Contacted</SelectItem>
+                  <SelectItem value="qualified">Qualified</SelectItem>
+                  <SelectItem value="appointment_set">Appointment Set</SelectItem>
+                  <SelectItem value="closed_won">Closed Won</SelectItem>
+                  <SelectItem value="closed_lost">Closed Lost</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="priority-filter">Priority</Label>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Priorities" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="urgent">Urgent</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -298,7 +310,7 @@ export default function Leads() {
               key={lead.id} 
               className={`border rounded-lg bg-white transition-all duration-200 ${
                 isExpanded ? 'shadow-md' : 'hover:shadow-sm'
-              } ${getUrgencyColor(lead.priority)} border-l-4`}
+              } ${getUrgencyColor(lead.priority || 'normal')} border-l-4`}
             >
               {/* Collapsed Row */}
               <div 
@@ -332,7 +344,7 @@ export default function Leads() {
                   
                   {/* Submission Date */}
                   <div className="flex-shrink-0 text-sm text-gray-500">
-                    {format(new Date(lead.createdAt), "MMM d, h:mm a")}
+                    {lead.createdAt ? format(new Date(lead.createdAt), "MMM d, h:mm a") : "No date"}
                   </div>
                   
                   {/* Status Dropdown */}
@@ -367,7 +379,7 @@ export default function Leads() {
                       className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {lead.phone}
+                      {displayPhoneNumber(lead.phone)}
                     </a>
                   </div>
                 </div>
@@ -391,6 +403,7 @@ export default function Leads() {
                     <MessageSquare className="w-4 h-4" />
                   </Button>
                 </div>
+              </div>
               
               {/* Expanded Details */}
               {isExpanded && (
@@ -475,7 +488,8 @@ export default function Leads() {
                 </div>
               )}
             </div>
-        ))}
+          );
+        })}
 
         {filteredLeads.length === 0 && (
           <Card>
@@ -485,7 +499,7 @@ export default function Leads() {
               <p className="text-muted-foreground">
                 {searchQuery || statusFilter !== "all" || priorityFilter !== "all"
                   ? "Try adjusting your filters to see more leads."
-                  : "New leads will appear here when customers submit inquiries."}
+                  : "Get started by adding your first lead or let customers submit inquiries through your widget."}
               </p>
             </CardContent>
           </Card>
@@ -495,21 +509,31 @@ export default function Leads() {
   );
 }
 
-function LeadDetailsModal({
-  lead,
-  onUpdateStatus,
-  onUpdateLead,
-  onSendMessage,
-}: {
+// Lead Details Modal Component
+function LeadDetailsModal({ 
+  lead, 
+  onUpdateStatus, 
+  onUpdateLead, 
+  onSendMessage 
+}: { 
   lead: Lead;
   onUpdateStatus: (status: string) => void;
-  onUpdateLead: (updates: Partial<Lead>) => void;
+  onUpdateLead: (updates: Partial<InsertLead>) => void;
   onSendMessage: (message: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState("details");
   const [editMode, setEditMode] = useState(false);
-  const [editData, setEditData] = useState(lead);
-  const [customMessage, setCustomMessage] = useState("");
+  const [editData, setEditData] = useState<Partial<InsertLead>>({
+    name: lead.name,
+    email: lead.email || "",
+    phone: lead.phone,
+    address: lead.address || "",
+    serviceType: lead.serviceType,
+    priority: lead.priority,
+    estimatedCost: lead.estimatedCost || 0,
+    rooms: lead.rooms || "",
+    notes: lead.notes || "",
+  });
 
   const handleSave = () => {
     onUpdateLead(editData);
@@ -517,25 +541,26 @@ function LeadDetailsModal({
   };
 
   const quickMessages = [
-    `Hi ${lead.name}, thanks for your interest in our cleaning services. When would be a good time to discuss your needs?`,
-    `Hello ${lead.name}, I'd like to schedule a time to provide you with a quote for your ${lead.serviceType} cleaning service.`,
-    `Hi ${lead.name}, we have availability for your cleaning service. Can we schedule an appointment this week?`,
-    `Thank you for choosing our cleaning services, ${lead.name}. Your appointment has been confirmed.`,
+    "Hi! Thanks for your interest in our cleaning services. When would be a good time to discuss your needs?",
+    "Hello! I'd like to schedule a free consultation for your cleaning service. Are you available this week?",
+    "Thank you for contacting us! We can provide a quote after a quick phone consultation. What's your availability?",
   ];
+
+  const [customMessage, setCustomMessage] = useState("");
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="details">Details</TabsTrigger>
-        <TabsTrigger value="notes">Notes & Updates</TabsTrigger>
-        <TabsTrigger value="communication">Communication</TabsTrigger>
+        <TabsTrigger value="messages">Messages</TabsTrigger>
+        <TabsTrigger value="history">History</TabsTrigger>
       </TabsList>
-
+      
       <TabsContent value="details" className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="font-semibold">Lead Information</h4>
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-medium">Lead Information</h3>
           <Button
-            variant="outline"
+            variant={editMode ? "default" : "outline"}
             size="sm"
             onClick={() => editMode ? handleSave() : setEditMode(true)}
           >
@@ -543,32 +568,20 @@ function LeadDetailsModal({
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
             <Label>Name</Label>
             {editMode ? (
               <Input
-                value={editData.name}
+                value={editData.name || ""}
                 onChange={(e) => setEditData({ ...editData, name: e.target.value })}
               />
             ) : (
-              <p className="capitalize">{lead.name}</p>
+              <p className="p-2 bg-muted rounded">{lead.name}</p>
             )}
           </div>
-
-          <div className="space-y-2">
-            <Label>Phone</Label>
-            {editMode ? (
-              <Input
-                value={editData.phone}
-                onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-              />
-            ) : (
-              <p>{lead.phone}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
+          
+          <div>
             <Label>Email</Label>
             {editMode ? (
               <Input
@@ -576,16 +589,28 @@ function LeadDetailsModal({
                 onChange={(e) => setEditData({ ...editData, email: e.target.value })}
               />
             ) : (
-              <p>{lead.email || "Not provided"}</p>
+              <p className="p-2 bg-muted rounded">{lead.email || "Not provided"}</p>
             )}
           </div>
-
-          <div className="space-y-2">
+          
+          <div>
+            <Label>Phone</Label>
+            {editMode ? (
+              <Input
+                value={editData.phone || ""}
+                onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+              />
+            ) : (
+              <p className="p-2 bg-muted rounded">{displayPhoneNumber(lead.phone)}</p>
+            )}
+          </div>
+          
+          <div>
             <Label>Service Type</Label>
             {editMode ? (
               <Select
                 value={editData.serviceType}
-                onValueChange={(value) => setEditData({ ...editData, serviceType: value })}
+                onValueChange={(value) => setEditData({ ...editData, serviceType: value as any })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -598,155 +623,116 @@ function LeadDetailsModal({
                 </SelectContent>
               </Select>
             ) : (
-              <p>{lead.serviceType}</p>
+              <p className="p-2 bg-muted rounded">
+                {lead.serviceType === "regular" && "Regular Cleaning"}
+                {lead.serviceType === "deep" && "Deep Cleaning"}
+                {lead.serviceType === "moveout" && "Move-out Cleaning"}
+                {lead.serviceType === "commercial" && "Commercial Cleaning"}
+              </p>
             )}
           </div>
-
-          <div className="space-y-2">
-            <Label>Priority</Label>
-            {editMode ? (
-              <Select
-                value={editData.priority}
-                onValueChange={(value) => setEditData({ ...editData, priority: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="low">Low</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            ) : (
-              <Badge variant={lead.priority === "urgent" ? "destructive" : "secondary"}>
-                {lead.priority}
-              </Badge>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Status</Label>
-            <Select value={lead.status} onValueChange={onUpdateStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="new">New</SelectItem>
-                <SelectItem value="contacted">Contacted</SelectItem>
-                <SelectItem value="qualified">Qualified</SelectItem>
-                <SelectItem value="appointment_set">Appointment Set</SelectItem>
-                <SelectItem value="closed_won">Closed Won</SelectItem>
-                <SelectItem value="closed_lost">Closed Lost</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {lead.address && (
-            <div className="space-y-2 md:col-span-2">
-              <Label>Address</Label>
-              {editMode ? (
-                <Input
-                  value={editData.address || ""}
-                  onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                />
-              ) : (
-                <p>{lead.address}</p>
-              )}
-            </div>
-          )}
-
-          {lead.rooms && (
-            <div className="space-y-2">
-              <Label>Rooms</Label>
-              {editMode ? (
-                <Input
-                  value={editData.rooms || ""}
-                  onChange={(e) => setEditData({ ...editData, rooms: e.target.value })}
-                />
-              ) : (
-                <p>{lead.rooms}</p>
-              )}
-            </div>
-          )}
-
-          {lead.estimatedCost && (
-            <div className="space-y-2">
-              <Label>Estimated Cost</Label>
-              {editMode ? (
-                <Input
-                  type="number"
-                  value={editData.estimatedCost || ""}
-                  onChange={(e) => setEditData({ ...editData, estimatedCost: parseInt(e.target.value) })}
-                />
-              ) : (
-                <p>${lead.estimatedCost}</p>
-              )}
-            </div>
-          )}
         </div>
-      </TabsContent>
 
-      <TabsContent value="notes" className="space-y-4">
-        <div className="space-y-2">
+        <div>
+          <Label>Status</Label>
+          <Select value={lead.status} onValueChange={onUpdateStatus}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="new">New</SelectItem>
+              <SelectItem value="contacted">Contacted</SelectItem>
+              <SelectItem value="qualified">Qualified</SelectItem>
+              <SelectItem value="appointment_set">Appointment Set</SelectItem>
+              <SelectItem value="closed_won">Closed Won</SelectItem>
+              <SelectItem value="closed_lost">Closed Lost</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label>Address</Label>
+            {editMode ? (
+              <Input
+                value={editData.address || ""}
+                onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+              />
+            ) : (
+              <p className="p-2 bg-muted rounded">{lead.address || "Not provided"}</p>
+            )}
+          </div>
+          
+          <div>
+            <Label>Estimated Cost</Label>
+            {editMode ? (
+              <Input
+                type="number"
+                value={editData.estimatedCost || ""}
+                onChange={(e) => setEditData({ ...editData, estimatedCost: parseInt(e.target.value) || 0 })}
+              />
+            ) : (
+              <p className="p-2 bg-muted rounded">
+                {lead.estimatedCost ? `$${lead.estimatedCost}` : "Not estimated"}
+              </p>
+            )}
+          </div>
+          
+          <div>
+            <Label>Rooms</Label>
+            {editMode ? (
+              <Input
+                value={editData.rooms || ""}
+                onChange={(e) => setEditData({ ...editData, rooms: e.target.value })}
+              />
+            ) : (
+              <p className="p-2 bg-muted rounded">{lead.rooms || "Not specified"}</p>
+            )}
+          </div>
+        </div>
+
+        <div>
           <Label>Notes</Label>
           {editMode ? (
             <Textarea
               value={editData.notes || ""}
               onChange={(e) => setEditData({ ...editData, notes: e.target.value })}
-              rows={8}
-              placeholder="Add notes about this lead..."
-            />
-          ) : (
-            <div className="bg-muted/50 p-4 rounded-md min-h-[200px] whitespace-pre-wrap">
-              {lead.notes || "No notes available"}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="w-4 h-4" />
-          <span>Created: {format(new Date(lead.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
-        </div>
-
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="w-4 h-4" />
-          <span>Updated: {format(new Date(lead.updatedAt), "MMM d, yyyy 'at' h:mm a")}</span>
-        </div>
-      </TabsContent>
-
-      <TabsContent value="communication" className="space-y-4">
-        <div className="space-y-4">
-          <h4 className="font-semibold">Quick Messages</h4>
-          <div className="space-y-2">
-            {quickMessages.map((message, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className="w-full text-left justify-start h-auto p-3"
-                onClick={() => onSendMessage(message)}
-              >
-                <MessageSquare className="w-4 h-4 mr-2 flex-shrink-0" />
-                <span className="text-sm">{message}</span>
-              </Button>
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Custom Message</Label>
-            <Textarea
-              value={customMessage}
-              onChange={(e) => setCustomMessage(e.target.value)}
-              placeholder="Type a custom message..."
               rows={3}
             />
-            <Button
+          ) : (
+            <p className="p-2 bg-muted rounded min-h-[80px]">{lead.notes || "No notes"}</p>
+          )}
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="messages" className="space-y-4">
+        <div>
+          <h3 className="text-lg font-medium mb-3">Quick Messages</h3>
+          <div className="space-y-2">
+            {quickMessages.map((message, index) => (
+              <div key={index} className="flex items-center justify-between p-3 border rounded">
+                <p className="text-sm flex-1 mr-3">{message}</p>
+                <Button size="sm" onClick={() => onSendMessage(message)}>
+                  Send
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        <div>
+          <h3 className="text-lg font-medium mb-3">Custom Message</h3>
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Type your custom message..."
+              value={customMessage}
+              onChange={(e) => setCustomMessage(e.target.value)}
+              rows={3}
+            />
+            <Button 
               onClick={() => {
-                if (customMessage.trim()) {
-                  onSendMessage(customMessage);
-                  setCustomMessage("");
-                }
+                onSendMessage(customMessage);
+                setCustomMessage("");
               }}
               disabled={!customMessage.trim()}
             >
@@ -755,10 +741,15 @@ function LeadDetailsModal({
           </div>
         </div>
       </TabsContent>
+      
+      <TabsContent value="history">
+        <p className="text-muted-foreground">Lead history and timeline will be displayed here.</p>
+      </TabsContent>
     </Tabs>
   );
 }
 
+// New Lead Form Component
 function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
   const form = useForm<InsertLead>({
     resolver: zodResolver(manualLeadSchema),
@@ -767,36 +758,27 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
       phone: "",
       email: "",
       serviceType: "regular",
-      rooms: "",
+      priority: "normal",
+      source: "manual",
+      status: "new",
       address: "",
       notes: "",
-      priority: "normal",
-      status: "new",
-      source: "manual",
     },
   });
 
   const handleSubmit = (data: InsertLead) => {
-    try {
-      // Format phone number to E.164 before submission
-      const formattedData = {
-        ...data,
-        phone: formatPhoneNumber(data.phone)
-      };
-      onSubmit(formattedData);
-      form.reset();
-    } catch (error) {
-      console.error("Phone formatting error:", error);
-      // Submit original data if formatting fails
-      onSubmit(data);
-      form.reset();
-    }
+    // Format phone number before submission
+    const formattedData = {
+      ...data,
+      phone: formatPhoneNumber(data.phone),
+    };
+    onSubmit(formattedData);
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="name"
@@ -804,13 +786,13 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
               <FormItem>
                 <FormLabel>Name *</FormLabel>
                 <FormControl>
-                  <Input placeholder="Customer name" {...field} />
+                  <Input placeholder="Enter customer name" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
+          
           <FormField
             control={form.control}
             name="phone"
@@ -824,21 +806,23 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
               </FormItem>
             )}
           />
+        </div>
 
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Email</FormLabel>
-                <FormControl>
-                  <Input placeholder="customer@email.com" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input placeholder="customer@example.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
+        <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
             name="serviceType"
@@ -886,20 +870,6 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
               </FormItem>
             )}
           />
-
-          <FormField
-            control={form.control}
-            name="rooms"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Rooms/Size</FormLabel>
-                <FormControl>
-                  <Input placeholder="3 bedrooms, 2 bathrooms" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
 
         <FormField
@@ -909,7 +879,7 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
             <FormItem>
               <FormLabel>Address</FormLabel>
               <FormControl>
-                <Input placeholder="123 Main Street, City, State" {...field} />
+                <Input placeholder="Service address" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -923,7 +893,7 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
             <FormItem>
               <FormLabel>Notes</FormLabel>
               <FormControl>
-                <Textarea
+                <Textarea 
                   placeholder="Additional information about the lead..."
                   rows={3}
                   {...field}
@@ -934,12 +904,9 @@ function NewLeadForm({ onSubmit }: { onSubmit: (data: InsertLead) => void }) {
           )}
         />
 
-        <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={() => form.reset()}>
-            Cancel
-          </Button>
-          <Button type="submit">Create Lead</Button>
-        </div>
+        <Button type="submit" className="w-full">
+          Create Lead
+        </Button>
       </form>
     </Form>
   );
