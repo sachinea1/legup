@@ -16,7 +16,7 @@ function Router() {
   const [location] = useLocation();
   
   // Routes that should not show the sidebar (customer-facing pages)
-  const noSidebarRoutes = ["/widget"];
+  const noSidebarRoutes = ["/widget", "/auth"];
   const shouldShowSidebar = !noSidebarRoutes.includes(location);
 
   if (!shouldShowSidebar) {
@@ -24,6 +24,7 @@ function Router() {
       <Switch>
         <Route path="/widget" component={Widget} />
         <Route path="/auth" component={AuthPage} />
+        <Route component={NotFound} />
       </Switch>
     );
   }
