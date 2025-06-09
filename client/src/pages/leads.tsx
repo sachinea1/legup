@@ -232,29 +232,12 @@ export default function Leads() {
             {Array.isArray(leads) ? leads.length : 0} total leads
           </p>
         </div>
-        <Dialog open={showNewLeadDialog} onOpenChange={setShowNewLeadDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add New Lead
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Create New Lead</DialogTitle>
-              <DialogDescription>
-                Add a new lead to the system manually.
-              </DialogDescription>
-            </DialogHeader>
-            <NewLeadForm onSubmit={(data: InsertLead) => createLeadMutation.mutate(data)} />
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Filters */}
       <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <CardContent className="p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="search">Search</Label>
               <Input
@@ -263,23 +246,6 @@ export default function Leads() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-            </div>
-            <div>
-              <Label htmlFor="status-filter">Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="contacted">Contacted</SelectItem>
-                  <SelectItem value="qualified">Qualified</SelectItem>
-                  <SelectItem value="appointment_set">Appointment Set</SelectItem>
-                  <SelectItem value="closed_won">Closed Won</SelectItem>
-                  <SelectItem value="closed_lost">Closed Lost</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
             <div>
               <Label htmlFor="priority-filter">Priority</Label>
@@ -295,6 +261,62 @@ export default function Leads() {
                   <SelectItem value="low">Low</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+          
+          {/* Status Filter Buttons */}
+          <div>
+            <Label>Status</Label>
+            <div className="flex flex-wrap gap-2 mt-2">
+              <Button
+                variant={statusFilter === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("all")}
+              >
+                All
+              </Button>
+              <Button
+                variant={statusFilter === "new" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("new")}
+              >
+                New
+              </Button>
+              <Button
+                variant={statusFilter === "contacted" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("contacted")}
+              >
+                Contacted
+              </Button>
+              <Button
+                variant={statusFilter === "qualified" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("qualified")}
+              >
+                Qualified
+              </Button>
+              <Button
+                variant={statusFilter === "appointment_set" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("appointment_set")}
+              >
+                Appointment Set
+              </Button>
+              <Button
+                variant={statusFilter === "closed_won" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("closed_won")}
+              >
+                Closed Won
+              </Button>
+              <Button
+                variant={statusFilter === "closed_lost" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter("closed_lost")}
+              >
+                Closed Lost
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -347,7 +369,21 @@ export default function Leads() {
                     {lead.createdAt ? format(new Date(lead.createdAt), "MMM d, h:mm a") : "No date"}
                   </div>
                   
-                  {/* Status Dropdown */}
+                  {/* Phone Number (Click-to-call) */}
+                  <div className="flex-shrink-0">
+                    <a 
+                      href={`tel:${lead.phone}`}
+                      className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {displayPhoneNumber(lead.phone)}
+                    </a>
+                  </div>
+                </div>
+                
+                {/* Right Side Actions */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {/* Customer Type Selection */}
                   <div className="flex-shrink-0">
                     <Select 
                       value={lead.status} 
@@ -356,7 +392,7 @@ export default function Leads() {
                       }}
                     >
                       <SelectTrigger 
-                        className="h-8 w-32 text-xs"
+                        className="h-8 w-28 text-xs"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <SelectValue />
@@ -372,20 +408,7 @@ export default function Leads() {
                     </Select>
                   </div>
                   
-                  {/* Phone Number (Click-to-call) */}
-                  <div className="flex-shrink-0">
-                    <a 
-                      href={`tel:${lead.phone}`}
-                      className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {displayPhoneNumber(lead.phone)}
-                    </a>
-                  </div>
-                </div>
-                
-                {/* Quick SMS Icon */}
-                <div className="flex-shrink-0">
+                  {/* Quick SMS Icon */}
                   <Button
                     variant="ghost"
                     size="sm"
