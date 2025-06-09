@@ -169,7 +169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/messages", authenticateToken);
 
   // Lead intake endpoint (protected)
-  app.post("/api/leads", async (req, res) => {
+  app.post("/api/leads", authenticateToken, async (req, res) => {
     try {
       // Use different validation based on source
       const isFromWidget = req.body.source === "widget";
@@ -184,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         phone: formattedPhone,
         status: validatedData.status || "new",
         source: validatedData.source || (isFromWidget ? "widget" : "manual")
-      });
+      }, req.user!.id);
 
       // Auto-qualify new lead and schedule follow-ups
       try {

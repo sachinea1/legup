@@ -12,11 +12,11 @@ export interface IStorage {
   updateUserPassword(id: number, passwordHash: string): Promise<void>;
   
   // Lead operations
-  createLead(lead: InsertLead): Promise<Lead>;
-  getLeads(status?: string, limit?: number): Promise<Lead[]>;
-  getLead(id: number): Promise<Lead | undefined>;
-  updateLeadStatus(id: number, status: string): Promise<Lead | undefined>;
-  updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead | undefined>;
+  createLead(lead: InsertLead, ownerId: number): Promise<Lead>;
+  getLeads(ownerId: number, status?: string, limit?: number): Promise<Lead[]>;
+  getLead(id: number, ownerId: number): Promise<Lead | undefined>;
+  updateLeadStatus(id: number, ownerId: number, status: string): Promise<Lead | undefined>;
+  updateLead(id: number, ownerId: number, updates: Partial<InsertLead>): Promise<Lead | undefined>;
   
   // Appointment operations
   createAppointment(appointment: InsertAppointment): Promise<Appointment>;
@@ -89,43 +89,50 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Lead operations
-  async createLead(insertLead: InsertLead): Promise<Lead> {
+  async createLead(insertLead: InsertLead, ownerId: number): Promise<Lead> {
     const [lead] = await db
       .insert(leads)
-      .values(insertLead)
+      .values({ ...insertLead, ownerId })
       .returning();
     return lead;
   }
 
-  async getLeads(status?: string, limit = 50): Promise<Lead[]> {
-    const query = db.select().from(leads).orderBy(desc(leads.createdAt)).limit(limit);
+  async getLeads(ownerId: number, status?: string, limit = 50): Promise<Lead[]> {
+    let query = db.select().from(leads)
+      .where(eq(leads.ownerId, ownerId))
+      .orderBy(desc(leads.createdAt))
+      .limit(limit);
     
     if (status) {
-      return await query.where(eq(leads.status, status));
+      query = db.select().from(leads)
+        .where(and(eq(leads.ownerId, ownerId), eq(leads.status, status)))
+        .orderBy(desc(leads.createdAt))
+        .limit(limit);
     }
-    
+
     return await query;
   }
 
-  async getLead(id: number): Promise<Lead | undefined> {
-    const [lead] = await db.select().from(leads).where(eq(leads.id, id));
+  async getLead(id: number, ownerId: number): Promise<Lead | undefined> {
+    const [lead] = await db.select().from(leads)
+      .where(and(eq(leads.id, id), eq(leads.ownerId, ownerId)));
     return lead || undefined;
   }
 
-  async updateLeadStatus(id: number, status: string): Promise<Lead | undefined> {
+  async updateLeadStatus(id: number, ownerId: number, status: string): Promise<Lead | undefined> {
     const [lead] = await db
       .update(leads)
       .set({ status, updatedAt: new Date() })
-      .where(eq(leads.id, id))
+      .where(and(eq(leads.id, id), eq(leads.ownerId, ownerId)))
       .returning();
     return lead || undefined;
   }
 
-  async updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead | undefined> {
+  async updateLead(id: number, ownerId: number, updates: Partial<InsertLead>): Promise<Lead | undefined> {
     const [lead] = await db
       .update(leads)
       .set({ ...updates, updatedAt: new Date() })
-      .where(eq(leads.id, id))
+      .where(and(eq(leads.id, id), eq(leads.ownerId, ownerId)))
       .returning();
     return lead || undefined;
   }
