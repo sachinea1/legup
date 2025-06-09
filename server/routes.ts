@@ -161,12 +161,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Protect admin routes with authentication
-  app.use("/api/leads", authenticateToken);
   app.use("/api/appointments", authenticateToken);
   app.use("/api/sms", authenticateToken);
   app.use("/api/stats", authenticateToken);
   app.use("/api/suggestions", authenticateToken);
   app.use("/api/messages", authenticateToken);
+
+  // Widget lead intake endpoint (public, assigns to default owner)
+  app.post("/api/widget/leads", async (req, res) => {
+    try {
+      const schema = widgetFormSchema;
+      const validatedData = schema.parse(req.body);
+      
+      // Format phone number to E.164 format
+      const formattedPhone = twilioService.formatPhoneNumber(validatedData.phone);
+      
+      // Assign to default admin user for widget leads
+      const defaultUser = await storage.getUserByEmail("test@cleanflow.com");
+      if (!defaultUser) {
+        return res.status(500).json({ error: "Default user not configured" });
+      }
+
+      const lead = await storage.createLead({
+        ...validatedData,
+        phone: formattedPhone,
+        status: "new",
+        source: "widget"
+      }, defaultUser.id);
+
+      // Auto-qualify new lead and schedule follow-ups
+      try {
+        await automationService.qualifyLead(lead.id);
+        await automationService.scheduleAutomaticFollowUps(lead.id);
+      } catch (automationError) {
+        console.error("Automation failed for lead:", lead.id, automationError);
+      }
+
+      res.status(201).json(lead);
+    } catch (error: any) {
+      console.error("Lead creation error:", error);
+      if (error.name === 'ZodError') {
+        const validationError = fromZodError(error);
+        return res.status(400).json({ error: validationError.message });
+      }
+      res.status(500).json({ error: "Failed to create lead" });
+    }
+  });
 
   // Lead intake endpoint (protected)
   app.post("/api/leads", authenticateToken, async (req, res) => {
@@ -407,12 +447,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send SMS message from leads page
-  app.post("/api/messages", async (req, res) => {
+  app.post("/api/messages", authenticateToken, async (req, res) => {
     try {
       const { phone, message } = req.body;
       
-      // Find the lead by phone number
-      const leads = await storage.getLeads();
+      // Find the lead by phone number for authenticated user
+      const leads = await storage.getLeads(req.user!.id);
       const lead = leads.find(l => l.phone === phone);
       
       if (!lead) {
@@ -558,10 +598,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const followUp of pendingFollowUps) {
         if (followUp.type === "sms" && followUp.leadId) {
-          const lead = await storage.getLead(followUp.leadId);
-          if (lead && lead.phone) {
-            await twilioService.sendSms(lead.phone, followUp.message || "");
-            await storage.markFollowUpCompleted(followUp.id);
+          // Get lead with proper owner verification via any admin (system process)
+          const adminUser = await storage.getUserByEmail("test@cleanflow.com");
+          if (adminUser) {
+            const lead = await storage.getLead(followUp.leadId, adminUser.id);
+            if (lead && lead.phone) {
+              await twilioService.sendSms(lead.phone, followUp.message || "");
+              await storage.markFollowUpCompleted(followUp.id);
+            }
           }
         }
       }

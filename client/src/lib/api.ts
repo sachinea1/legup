@@ -4,7 +4,7 @@ import type { WidgetFormData, Lead, Appointment, SmsMessage } from "@shared/sche
 export const api = {
   // Lead operations
   createLead: (data: WidgetFormData) => 
-    apiRequest("POST", "/api/leads", data),
+    apiRequest("POST", "/api/widget/leads", data),
   
   getLeads: (status?: string) => {
     const params = status ? `?status=${status}` : "";

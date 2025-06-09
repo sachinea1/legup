@@ -247,7 +247,7 @@ export class DatabaseStorage implements IStorage {
       const [updated] = await db
         .update(availability)
         .set({ 
-          timeSlots: insertAvailability.timeSlots,
+          timeSlots: insertAvailability.timeSlots as string[],
           isBlocked: insertAvailability.isBlocked,
           reason: insertAvailability.reason,
           updatedAt: new Date() 
