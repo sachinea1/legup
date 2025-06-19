@@ -108,8 +108,8 @@ export function OnboardingOverlay() {
     acceptInvitationMutation.mutate(data);
   };
 
-  // Don't show overlay if user is already onboarded
-  if (user?.isOnboarded && user?.organizationId) {
+  // Don't show overlay if user is already onboarded or if manually hidden
+  if (isHidden || (user?.isOnboarded && user?.organizationId)) {
     return null;
   }
 
