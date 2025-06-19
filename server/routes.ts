@@ -552,13 +552,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const updateSchema = z.object({
         name: z.string().min(1, "Company name is required"),
-        slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
         timezone: z.string().optional(),
         businessHours: z.string().optional(),
         defaultServices: z.string().optional(),
       }).transform(data => ({
         name: data.name,
-        slug: data.slug,
         settings: {
           timezone: data.timezone,
           businessHours: data.businessHours ? [data.businessHours] : undefined,
@@ -574,13 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      // Check if slug is available (excluding current organization)
-      if (validatedData.slug) {
-        const existingOrg = await storage.getOrganizationBySlug(validatedData.slug);
-        if (existingOrg && existingOrg.id !== parseInt(id)) {
-          return res.status(400).json({ error: "Organization slug already taken" });
-        }
-      }
+
 
       const updatedOrganization = await storage.updateOrganization(parseInt(id), validatedData);
       res.json(updatedOrganization);

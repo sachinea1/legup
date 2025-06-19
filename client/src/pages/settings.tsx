@@ -194,7 +194,6 @@ export default function SettingsPage() {
     resolver: zodResolver(companyUpdateSchema),
     defaultValues: {
       name: organization?.name || "",
-      slug: organization?.slug || "",
       timezone: organization?.timezone || "",
       businessHours: organization?.businessHours || "",
       defaultServices: organization?.defaultServices || "",
@@ -223,7 +222,6 @@ export default function SettingsPage() {
     if (organization) {
       companyForm.reset({
         name: organization.name || "",
-        slug: organization.slug || "",
         timezone: organization.timezone || "",
         businessHours: organization.businessHours || "",
         defaultServices: organization.defaultServices || "",
@@ -406,19 +404,7 @@ export default function SettingsPage() {
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={companyForm.control}
-                      name="slug"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Company Slug</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="your-company-name" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+
                     <FormField
                       control={companyForm.control}
                       name="timezone"
