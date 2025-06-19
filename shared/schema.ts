@@ -69,7 +69,7 @@ export const appointments = pgTable("appointments", {
 
 export const smsMessages = pgTable("sms_messages", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id),
   leadId: integer("lead_id").references(() => leads.id),
   phone: varchar("phone", { length: 20 }).notNull(),
   direction: text("direction").notNull(), // inbound, outbound
@@ -94,7 +94,7 @@ export const availability = pgTable("availability", {
 
 export const followUps = pgTable("follow_ups", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id),
   leadId: integer("lead_id").references(() => leads.id),
   type: text("type").notNull(), // sms, email, call
   scheduledFor: timestamp("scheduled_for").notNull(),
