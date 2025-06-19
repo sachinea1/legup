@@ -435,6 +435,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Organization setup
+  app.post("/api/organizations", authenticateToken, async (req, res) => {
+    try {
+      const result = organizationSetupSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: fromZodError(result.error).toString() });
+      }
+
+      // Check if slug is available
+      const existingOrg = await storage.getOrganizationBySlug(result.data.slug);
+      if (existingOrg) {
+        return res.status(400).json({ error: "Organization slug already taken" });
+      }
+
+      // Create organization
+      const organization = await storage.createOrganization(result.data);
+      
+      // Update user to be admin of this organization
+      await storage.updateUserOrganization(req.user!.id, organization.id, "admin");
+      await storage.markUserOnboarded(req.user!.id);
+
+      res.status(201).json(organization);
+    } catch (error) {
+      console.error("Organization creation failed:", error);
+      res.status(500).json({ error: "Failed to create organization" });
+    }
+  });
+
+  // Get organization details
+  app.get("/api/organizations/:id", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const organization = await storage.getOrganization(parseInt(id));
+      
+      if (!organization) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+
+      // Check if user belongs to this organization
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== organization.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      res.json(organization);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch organization" });
+    }
+  });
+
+  // Invite team member
+  app.post("/api/invitations", authenticateToken, async (req, res) => {
+    try {
+      const result = inviteTeamMemberSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: fromZodError(result.error).toString() });
+      }
+
+      // Check if user is admin or manager
+      const user = await storage.getUser(req.user!.id);
+      if (!user?.organizationId || !["admin", "manager"].includes(user.role || "")) {
+        return res.status(403).json({ error: "Insufficient permissions" });
+      }
+
+      // Check if email is already a user
+      const existingUser = await storage.getUserByEmail(result.data.email);
+      if (existingUser?.organizationId) {
+        return res.status(400).json({ error: "User already belongs to an organization" });
+      }
+
+      // Generate invitation token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      const invitation = await storage.createInvitation({
+        organizationId: user.organizationId,
+        email: result.data.email,
+        role: result.data.role,
+        invitedBy: req.user!.id,
+        token,
+        expiresAt
+      });
+
+      // TODO: Send invitation email
+      console.log(`Invitation created for ${result.data.email} with token: ${token}`);
+
+      res.status(201).json({ message: "Invitation sent successfully", invitationId: invitation.id });
+    } catch (error) {
+      console.error("Invitation creation failed:", error);
+      res.status(500).json({ error: "Failed to send invitation" });
+    }
+  });
+
+  // Accept invitation
+  app.post("/api/invitations/accept", authenticateToken, async (req, res) => {
+    try {
+      const result = acceptInvitationSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: fromZodError(result.error).toString() });
+      }
+
+      const invitation = await storage.getInvitation(result.data.token);
+      if (!invitation) {
+        return res.status(404).json({ error: "Invalid invitation token" });
+      }
+
+      if (invitation.expiresAt < new Date()) {
+        return res.status(400).json({ error: "Invitation has expired" });
+      }
+
+      if (invitation.acceptedAt) {
+        return res.status(400).json({ error: "Invitation already accepted" });
+      }
+
+      // Check if user email matches invitation
+      const user = await storage.getUser(req.user!.id);
+      if (user?.email !== invitation.email) {
+        return res.status(400).json({ error: "Email mismatch" });
+      }
+
+      // Accept invitation
+      await storage.acceptInvitation(result.data.token);
+      await storage.updateUserOrganization(req.user!.id, invitation.organizationId, invitation.role);
+      await storage.markUserOnboarded(req.user!.id);
+
+      const organization = await storage.getOrganization(invitation.organizationId);
+      res.json({ message: "Invitation accepted successfully", organization });
+    } catch (error) {
+      console.error("Invitation acceptance failed:", error);
+      res.status(500).json({ error: "Failed to accept invitation" });
+    }
+  });
+
+  // Get organization team members
+  app.get("/api/organizations/:id/members", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if user belongs to this organization
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== parseInt(id)) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const members = await storage.getOrganizationUsers(parseInt(id));
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch team members" });
+    }
+  });
+
+  // Get organization invitations (admin/manager only)
+  app.get("/api/organizations/:id/invitations", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if user is admin or manager
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== parseInt(id) || !["admin", "manager"].includes(user.role || "")) {
+        return res.status(403).json({ error: "Insufficient permissions" });
+      }
+
+      const invitations = await storage.getOrganizationInvitations(parseInt(id));
+      res.json(invitations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch invitations" });
+    }
+  });
+
   // Test SMS functionality
   app.post("/api/test-sms", async (req, res) => {
     try {

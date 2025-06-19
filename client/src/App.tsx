@@ -10,13 +10,14 @@ import Dashboard from "@/pages/dashboard";
 import Leads from "@/pages/leads";
 import Widget from "@/pages/widget";
 import AuthPage from "@/pages/auth";
+import OnboardingPage from "@/pages/onboarding";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   const [location] = useLocation();
   
   // Routes that should not show the sidebar (customer-facing pages)
-  const noSidebarRoutes = ["/widget", "/auth"];
+  const noSidebarRoutes = ["/widget", "/auth", "/onboarding"];
   const shouldShowSidebar = !noSidebarRoutes.includes(location);
 
   if (!shouldShowSidebar) {
@@ -24,6 +25,7 @@ function Router() {
       <Switch>
         <Route path="/widget" component={Widget} />
         <Route path="/auth" component={AuthPage} />
+        <Route path="/onboarding" component={OnboardingPage} />
         <Route component={NotFound} />
       </Switch>
     );
