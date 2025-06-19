@@ -3,6 +3,12 @@ import { db } from "./db";
 import { eq, desc, and, gte, lte, or, asc } from "drizzle-orm";
 
 export interface IStorage {
+  // Organization operations
+  createOrganization(org: OrganizationSetup): Promise<Organization>;
+  getOrganization(id: number): Promise<Organization | undefined>;
+  getOrganizationBySlug(slug: string): Promise<Organization | undefined>;
+  updateOrganization(id: number, updates: Partial<OrganizationSetup>): Promise<Organization | undefined>;
+  
   // User operations
   createUser(user: Omit<InsertUser, 'password'> & { passwordHash: string }): Promise<User>;
   getUser(id: number): Promise<User | undefined>;
@@ -10,9 +16,18 @@ export interface IStorage {
   getUserByResetToken(token: string): Promise<User | undefined>;
   updateUserResetToken(id: number, token: string | null, expiry: Date | null): Promise<void>;
   updateUserPassword(id: number, passwordHash: string): Promise<void>;
+  updateUserOrganization(id: number, organizationId: number, role: string): Promise<void>;
+  markUserOnboarded(id: number): Promise<void>;
+  getOrganizationUsers(organizationId: number): Promise<User[]>;
+  
+  // Invitation operations
+  createInvitation(invitation: InsertInvitation & { token: string; expiresAt: Date }): Promise<Invitation>;
+  getInvitation(token: string): Promise<Invitation | undefined>;
+  acceptInvitation(token: string): Promise<Invitation | undefined>;
+  getOrganizationInvitations(organizationId: number): Promise<Invitation[]>;
   
   // Lead operations
-  createLead(lead: InsertLead, ownerId: number): Promise<Lead>;
+  createLead(lead: InsertLead, ownerId: number, organizationId?: number): Promise<Lead>;
   getLeads(ownerId: number, status?: string, limit?: number): Promise<Lead[]>;
   getLead(id: number, ownerId: number): Promise<Lead | undefined>;
   updateLeadStatus(id: number, ownerId: number, status: string): Promise<Lead | undefined>;
@@ -50,6 +65,53 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Organization operations
+  async createOrganization(orgData: OrganizationSetup): Promise<Organization> {
+    const [organization] = await db
+      .insert(organizations)
+      .values({
+        name: orgData.name,
+        slug: orgData.slug,
+        settings: {
+          businessHours: orgData.businessHours,
+          timezone: orgData.timezone,
+          defaultServices: orgData.defaultServices,
+          address: orgData.address,
+          phone: orgData.phone,
+        }
+      })
+      .returning();
+    return organization;
+  }
+
+  async getOrganization(id: number): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    return org || undefined;
+  }
+
+  async getOrganizationBySlug(slug: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.slug, slug));
+    return org || undefined;
+  }
+
+  async updateOrganization(id: number, updates: Partial<OrganizationSetup>): Promise<Organization | undefined> {
+    const [updated] = await db
+      .update(organizations)
+      .set({
+        name: updates.name,
+        settings: updates.address || updates.phone || updates.businessHours || updates.timezone || updates.defaultServices ? {
+          businessHours: updates.businessHours,
+          timezone: updates.timezone,
+          defaultServices: updates.defaultServices,
+          address: updates.address,
+          phone: updates.phone,
+        } : undefined
+      })
+      .where(eq(organizations.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
   // User operations
   async createUser(user: Omit<InsertUser, 'password'> & { passwordHash: string }): Promise<User> {
     const [newUser] = await db
@@ -88,11 +150,74 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id));
   }
 
+  async updateUserOrganization(id: number, organizationId: number, role: string): Promise<void> {
+    await db
+      .update(users)
+      .set({ organizationId, role })
+      .where(eq(users.id, id));
+  }
+
+  async markUserOnboarded(id: number): Promise<void> {
+    await db
+      .update(users)
+      .set({ isOnboarded: true })
+      .where(eq(users.id, id));
+  }
+
+  async getOrganizationUsers(organizationId: number): Promise<User[]> {
+    return await db
+      .select()
+      .from(users)
+      .where(eq(users.organizationId, organizationId));
+  }
+
+  // Invitation operations
+  async createInvitation(invitation: InsertInvitation & { token: string; expiresAt: Date }): Promise<Invitation> {
+    const [newInvitation] = await db
+      .insert(invitations)
+      .values(invitation)
+      .returning();
+    return newInvitation;
+  }
+
+  async getInvitation(token: string): Promise<Invitation | undefined> {
+    const [invitation] = await db
+      .select()
+      .from(invitations)
+      .where(eq(invitations.token, token));
+    return invitation || undefined;
+  }
+
+  async acceptInvitation(token: string): Promise<Invitation | undefined> {
+    const [accepted] = await db
+      .update(invitations)
+      .set({ acceptedAt: new Date() })
+      .where(eq(invitations.token, token))
+      .returning();
+    return accepted || undefined;
+  }
+
+  async getOrganizationInvitations(organizationId: number): Promise<Invitation[]> {
+    return await db
+      .select()
+      .from(invitations)
+      .where(eq(invitations.organizationId, organizationId));
+  }
+
   // Lead operations
-  async createLead(insertLead: InsertLead, ownerId: number): Promise<Lead> {
+  async createLead(insertLead: InsertLead, ownerId: number, organizationId?: number): Promise<Lead> {
+    // Get user's organization if not provided
+    if (!organizationId) {
+      const user = await this.getUser(ownerId);
+      if (!user?.organizationId) {
+        throw new Error("User must be assigned to an organization");
+      }
+      organizationId = user.organizationId;
+    }
+    
     const [lead] = await db
       .insert(leads)
-      .values({ ...insertLead, ownerId })
+      .values({ ...insertLead, ownerId, organizationId })
       .returning();
     return lead;
   }
