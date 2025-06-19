@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ export function OnboardingOverlay() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("create");
+  const [isHidden, setIsHidden] = useState(false);
 
   // Organization creation form
   const createOrgForm = useForm({
@@ -43,12 +44,16 @@ export function OnboardingOverlay() {
       const res = await apiRequest("POST", "/api/organizations", data);
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: async (organizationData) => {
       toast({
         title: "Organization created",
         description: "Your organization has been set up successfully!"
       });
-      // Refresh the authentication data
+      
+      // Hide the overlay immediately
+      setIsHidden(true);
+      
+      // Update the user data in the background
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
     onError: (error: Error) => {
@@ -70,6 +75,11 @@ export function OnboardingOverlay() {
         title: "Invitation accepted",
         description: "Welcome to your new organization!"
       });
+      
+      // Hide the overlay immediately
+      setIsHidden(true);
+      
+      // Update the user data in the background
       queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
     },
     onError: (error: Error) => {
@@ -99,7 +109,7 @@ export function OnboardingOverlay() {
   };
 
   // Don't show overlay if user is already onboarded
-  if (user?.isOnboarded) {
+  if (user?.isOnboarded && user?.organizationId) {
     return null;
   }
 

@@ -33,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isLoading,
   } = useQuery<User | null>({
     queryKey: ["auth", "me"],
+    staleTime: 0, // Always refetch to ensure fresh data
     queryFn: async () => {
       const token = localStorage.getItem("auth_token");
       if (!token) return null;
