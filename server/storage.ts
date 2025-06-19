@@ -96,19 +96,16 @@ export class DatabaseStorage implements IStorage {
     return org || undefined;
   }
 
-  async updateOrganization(id: number, updates: Partial<OrganizationSetup>): Promise<Organization | undefined> {
+  async updateOrganization(id: number, updates: any): Promise<Organization | undefined> {
+    const updateData: any = {};
+    
+    if (updates.name) updateData.name = updates.name;
+    if (updates.slug) updateData.slug = updates.slug;
+    if (updates.settings) updateData.settings = updates.settings;
+    
     const [updated] = await db
       .update(organizations)
-      .set({
-        name: updates.name,
-        settings: updates.address || updates.phone || updates.businessHours || updates.timezone || updates.defaultServices ? {
-          businessHours: updates.businessHours,
-          timezone: updates.timezone,
-          defaultServices: updates.defaultServices,
-          address: updates.address,
-          phone: updates.phone,
-        } : undefined
-      })
+      .set(updateData)
       .where(eq(organizations.id, id))
       .returning();
     return updated || undefined;
