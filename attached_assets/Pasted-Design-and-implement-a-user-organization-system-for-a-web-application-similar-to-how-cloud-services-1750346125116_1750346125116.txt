@@ -1,0 +1,52 @@
+Design and implement a user-organization system for a web application, similar to how cloud services like AWS, Notion, or Slack handle multi-tenant structures. The goal is to allow a user to:
+
+1. Sign up and become an "Owner" of a new organization (org).
+2. Create and configure their organization (org name, optional subdomain, plan, etc).
+3. Invite other users (via email) to join their organization.
+4. Ensure new users can accept invites and join the correct org.
+5. Support role-based access control (Owner, Admin, Member, etc).
+6. Enable organization switching if a user belongs to multiple orgs.
+
+### Functional Requirements
+
+- When a user signs up for the first time, prompt them to create an organization.
+- Store the relationship between users and organizations in a join table (e.g., `OrganizationMembership`).
+- Generate unique org IDs or slugs (e.g., `acme-inc`) that can be used in URLs or subdomains (`acme.yourapp.com`).
+- Enable an "Invite Members" feature, which sends an email invite with a secure token.
+- Upon clicking the invite link, the user should be directed to sign up (if they don’t already have an account) and join the inviting organization.
+- Ensure organization context is persistent in the app’s UI (e.g., via subdomain or session-scoped org selection).
+
+### Example Tables
+
+- `users`: `id`, `email`, `password_hash`, etc.
+- `organizations`: `id`, `name`, `slug`, `owner_user_id`
+- `organization_memberships`: `user_id`, `organization_id`, `role` (owner, admin, member)
+- `invites`: `id`, `organization_id`, `email`, `token`, `status`, `created_at`, `expires_at`
+
+### Flow Overview
+
+**Initial Signup**
+- User signs up → Immediately directed to "Create your organization" flow → Org is created, and user becomes owner.
+
+**Invite Flow**
+- Owner/Admin clicks “Invite Members” → Inputs emails → System generates invites with unique tokens.
+- Invited user clicks the invite link → If new, they sign up → System auto-links them to the org and assigns the appropriate role.
+
+**Auth Context**
+- Store active organization in session or JWT.
+- If user has access to multiple orgs, allow switching (like Google Workspace does with dropdowns or Slack with workspace switcher).
+
+### UI Considerations
+
+- Use onboarding steps like Notion's or Linear's to guide through:
+  1. Account creation
+  2. Organization creation
+  3. Team member invite
+
+- After login, ensure org context is visible in the UI (e.g., top-left dropdown with org name/logo).
+
+### Notes
+
+- Treat organizations as tenants; ensure data segregation if needed.
+- Design URL structures and API routes to be scoped by org ID or slug.
+- Secure the invite system to prevent token abuse or reuse.

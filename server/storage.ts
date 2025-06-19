@@ -1,4 +1,4 @@
-import { users, leads, appointments, smsMessages, availability, followUps, type User, type InsertUser, type Lead, type InsertLead, type Appointment, type InsertAppointment, type SmsMessage, type InsertSmsMessage, type Availability, type InsertAvailability, type FollowUp, type InsertFollowUp } from "@shared/schema";
+import { users, organizations, invitations, leads, appointments, smsMessages, availability, followUps, type User, type InsertUser, type Organization, type InsertOrganization, type OrganizationSetup, type Invitation, type InsertInvitation, type Lead, type InsertLead, type Appointment, type InsertAppointment, type SmsMessage, type InsertSmsMessage, type Availability, type InsertAvailability, type FollowUp, type InsertFollowUp } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, or, asc } from "drizzle-orm";
 

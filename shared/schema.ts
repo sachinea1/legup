@@ -7,13 +7,28 @@ export const organizations = pgTable("organizations", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(), // unique identifier like "cleanflow-chicago"
+  logo: text("logo"), // logo URL
   settings: jsonb("settings").$type<{
     businessHours?: string[];
     timezone?: string;
     defaultServices?: string[];
+    address?: string;
+    phone?: string;
   }>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const invitations = pgTable("invitations", {
+  id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  email: text("email").notNull(),
+  role: text("role").default("staff"), // owner, manager, staff
+  token: text("token").notNull().unique(),
+  invitedById: integer("invited_by_id").references(() => users.id).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const users = pgTable("users", {
@@ -22,7 +37,8 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
-  role: text("role").default("user"), // admin, manager, user
+  role: text("role").default("staff"), // owner, manager, staff
+  isOnboarded: boolean("is_onboarded").default(false),
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -112,6 +128,18 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   appointments: many(appointments),
   smsMessages: many(smsMessages),
   followUps: many(followUps),
+  invitations: many(invitations),
+}));
+
+export const invitationsRelations = relations(invitations, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [invitations.organizationId],
+    references: [organizations.id],
+  }),
+  invitedBy: one(users, {
+    fields: [invitations.invitedById],
+    references: [users.id],
+  }),
 }));
 
 export const usersRelations = relations(users, ({ one, many }) => ({
@@ -174,6 +202,14 @@ export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+});
+
+export const insertInvitationSchema = createInsertSchema(invitations).omit({
+  id: true,
+  token: true,
+  createdAt: true,
+  acceptedAt: true,
+  expiresAt: true,
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -261,9 +297,38 @@ export const passwordResetSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
+// Organization onboarding schemas
+export const organizationSetupSchema = z.object({
+  name: z.string().min(1, "Company name is required"),
+  slug: z.string().min(3, "Company identifier must be at least 3 characters").regex(/^[a-z0-9-]+$/, "Only lowercase letters, numbers, and hyphens allowed"),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  timezone: z.string().default("America/New_York"),
+  businessHours: z.array(z.string()).default(["09:00-17:00"]),
+  defaultServices: z.array(z.string()).default(["regular", "deep", "moveout"]),
+});
+
+export const inviteTeamMemberSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  role: z.enum(["staff", "manager"], {
+    required_error: "Please select a role",
+  }),
+});
+
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1, "Invitation token is required"),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
+});
+
 // Types
 export type Organization = typeof organizations.$inferSelect;
 export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+export type OrganizationSetup = z.infer<typeof organizationSetupSchema>;
+
+export type Invitation = typeof invitations.$inferSelect;
+export type InsertInvitation = z.infer<typeof insertInvitationSchema>;
+export type InviteTeamMember = z.infer<typeof inviteTeamMemberSchema>;
+export type AcceptInvitation = z.infer<typeof acceptInvitationSchema>;
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;

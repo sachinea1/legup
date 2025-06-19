@@ -1,0 +1,91 @@
+Refine and complete the organization-aware authentication and onboarding system for a CRM tool built for **cleaning companies** to manage:
+
+- Leads
+- Scheduled cleaning jobs (calendar)
+- Cleaning team members assigned to jobs
+
+This system must support **multi-tenant access**, where each cleaning company (organization) has isolated data and team-specific access. Use UX and structural inspirations from SaaS platforms like Slack, Notion, and ServiceTitan.
+
+# Objective:
+Create a seamless, secure, and intuitive **user + organization** system that allows cleaning companies to:
+- Sign up as a business
+- Invite staff/team members
+- Manage leads, jobs, and team assignments in a shared dashboard
+- Restrict visibility and permissions based on roles
+
+# Feature Scope & Implementation Plan
+
+## ✅ 1. Organization-Centric Authentication (Foundation)
+- [x] Users register/login with email + password
+- [ ] After first signup, prompt the user to **create a company profile** (organization)
+  - Input: company name, timezone, optional logo
+- [ ] JWT should include: `userId`, `organizationId`, `role`
+- [ ] Middleware should extract and validate both `userId` and `organizationId` for every protected route
+
+## ✅ 2. Database Schema Alignment
+- [x] Schema already includes `organizationId` in core tables (users, leads, jobs)
+- [ ] Ensure tables are scoped to `organizationId`:
+  - `leads`: belong to an org, assigned to a user
+  - `jobs`: scheduled within an org, linked to one or more team members
+  - `users`: assigned to a single org (or support future multi-org with membership table)
+- [ ] Update queries to always enforce `organizationId` filter
+
+## ✅ 3. Role-Based Permissions (RBAC)
+- [ ] Define roles: `owner`, `manager`, `staff`
+  - **Owner**: org creator; full access including settings and billing
+  - **Manager**: can assign jobs, manage leads/team
+  - **Staff**: limited to viewing jobs assigned to them
+- [ ] Add `role` column to `users` or via `organization_memberships`
+- [ ] Apply middleware or conditionals on API endpoints based on roles
+
+## ✅ 4. Invitation System
+- [ ] Owners/Managers can invite team members via email
+- [ ] Send a secure token link → when clicked:
+  - If user exists: allow them to join the org
+  - If not: guide through signup and auto-join on completion
+- [ ] Prevent re-use or expired token errors
+- [ ] Add visual confirmation when user joins an org (e.g. org logo + name)
+
+## ✅ 5. Organization Context UX
+- [ ] Show current organization name/logo in top nav or sidebar
+- [ ] Support future multi-org users with a dropdown switcher (Slack-style)
+- [ ] Store active org in session or token
+- [ ] Route structure: scoped by org slug (e.g., `/dashboard/:orgSlug/jobs`)
+
+## ✅ 6. Onboarding & First-Use Experience
+- [ ] After signup → "Set Up Your Cleaning Business" flow:
+  - Company name, timezone, business hours
+  - Add first lead/job
+  - Invite team members
+- [ ] Show dashboard overview of upcoming jobs, lead pipeline, and team
+
+## ✅ 7. UI Role-Awareness
+- [ ] Dynamic nav items:
+  - Staff only see "My Schedule" and "Assigned Jobs"
+  - Managers/Owners see leads, job calendar, and team management
+- [ ] 403 pages for restricted access
+- [ ] Role labels on user cards (e.g., “John Doe - Staff”)
+
+## ✅ 8. Future-Proofing (Optional)
+- [ ] Stripe integration for org-based billing
+  - Limit # of team members or jobs on free plan
+- [ ] Organization settings page for:
+  - Editing company info
+  - Default job durations, services, etc.
+- [ ] Audit logging (e.g., “Manager X reassigned Job #241 to Team Member Y”)
+
+## ✅ 9. Example Use Cases
+
+**Use Case 1: Small Cleaning Business**
+- Alice signs up → creates "Sparkle & Shine LLC"
+- Adds team members via invite (emails go out)
+- Adds new lead → schedules a job → assigns team member
+- Staff logs in → sees only their assigned jobs for the day
+
+**Use Case 2: Multi-Location Business (future-ready)**
+- Same user manages multiple locations (orgs)
+- Switches orgs using org switcher (like Slack)
+- Each org has separate leads, teams, and schedules
+
+# Deliverable:
+A fully functional, user-friendly authentication and organizational system tailored for cleaning companies. It must enable team-based collaboration, secure role-specific access, and intuitive business onboarding — all while keeping organ
