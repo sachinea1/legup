@@ -3,11 +3,26 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(), // unique identifier like "cleanflow-chicago"
+  settings: jsonb("settings").$type<{
+    businessHours?: string[];
+    timezone?: string;
+    defaultServices?: string[];
+  }>(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
+  role: text("role").default("user"), // admin, manager, user
   resetToken: text("reset_token"),
   resetTokenExpiry: timestamp("reset_token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -16,6 +31,7 @@ export const users = pgTable("users", {
 
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
   ownerId: integer("owner_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
@@ -35,6 +51,7 @@ export const leads = pgTable("leads", {
 
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
   leadId: integer("lead_id").references(() => leads.id),
   customerName: text("customer_name").notNull(),
   customerPhone: varchar("customer_phone", { length: 20 }).notNull(),
@@ -52,6 +69,7 @@ export const appointments = pgTable("appointments", {
 
 export const smsMessages = pgTable("sms_messages", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
   leadId: integer("lead_id").references(() => leads.id),
   phone: varchar("phone", { length: 20 }).notNull(),
   direction: text("direction").notNull(), // inbound, outbound
@@ -76,6 +94,7 @@ export const availability = pgTable("availability", {
 
 export const followUps = pgTable("follow_ups", {
   id: serial("id").primaryKey(),
+  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
   leadId: integer("lead_id").references(() => leads.id),
   type: text("type").notNull(), // sms, email, call
   scheduledFor: timestamp("scheduled_for").notNull(),
@@ -87,7 +106,27 @@ export const followUps = pgTable("follow_ups", {
 });
 
 // Relations
+export const organizationsRelations = relations(organizations, ({ many }) => ({
+  users: many(users),
+  leads: many(leads),
+  appointments: many(appointments),
+  smsMessages: many(smsMessages),
+  followUps: many(followUps),
+}));
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id],
+  }),
+  leads: many(leads),
+}));
+
 export const leadsRelations = relations(leads, ({ many, one }) => ({
+  organization: one(organizations, {
+    fields: [leads.organizationId],
+    references: [organizations.id],
+  }),
   owner: one(users, {
     fields: [leads.ownerId],
     references: [users.id],
@@ -98,6 +137,10 @@ export const leadsRelations = relations(leads, ({ many, one }) => ({
 }));
 
 export const appointmentsRelations = relations(appointments, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [appointments.organizationId],
+    references: [organizations.id],
+  }),
   lead: one(leads, {
     fields: [appointments.leadId],
     references: [leads.id],
@@ -105,6 +148,10 @@ export const appointmentsRelations = relations(appointments, ({ one }) => ({
 }));
 
 export const smsMessagesRelations = relations(smsMessages, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [smsMessages.organizationId],
+    references: [organizations.id],
+  }),
   lead: one(leads, {
     fields: [smsMessages.leadId],
     references: [leads.id],
@@ -112,6 +159,10 @@ export const smsMessagesRelations = relations(smsMessages, ({ one }) => ({
 }));
 
 export const followUpsRelations = relations(followUps, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [followUps.organizationId],
+    references: [organizations.id],
+  }),
   lead: one(leads, {
     fields: [followUps.leadId],
     references: [leads.id],
@@ -119,6 +170,12 @@ export const followUpsRelations = relations(followUps, ({ one }) => ({
 }));
 
 // Insert schemas
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
   passwordHash: true,
