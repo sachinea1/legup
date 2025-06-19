@@ -23,7 +23,6 @@ export function OnboardingOverlay() {
   const createOrgForm = useForm({
     defaultValues: {
       name: "",
-      slug: "",
       businessHours: [],
       timezone: "America/New_York",
       defaultServices: ["House Cleaning", "Deep Cleaning", "Move-in/Move-out Cleaning"],
@@ -91,14 +90,7 @@ export function OnboardingOverlay() {
     }
   });
 
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim();
-  };
+
 
   const onCreateOrg = (data: any) => {
     createOrgMutation.mutate(data);
@@ -108,8 +100,8 @@ export function OnboardingOverlay() {
     acceptInvitationMutation.mutate(data);
   };
 
-  // Don't show overlay if user is already onboarded or if manually hidden
-  if (isHidden || (user?.isOnboarded && user?.organizationId)) {
+  // Don't show overlay if user already has an organization or if manually hidden
+  if (isHidden || user?.organizationId) {
     return null;
   }
 
@@ -145,42 +137,22 @@ export function OnboardingOverlay() {
 
               <Form {...createOrgForm}>
                 <form onSubmit={createOrgForm.handleSubmit(onCreateOrg)} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={createOrgForm.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Organization Name</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              placeholder="Sparkling Clean Services"
-                              onChange={(e) => {
-                                field.onChange(e);
-                                createOrgForm.setValue("slug", generateSlug(e.target.value));
-                              }}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={createOrgForm.control}
-                      name="slug"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>URL Slug</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="sparkling-clean-services" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+                  <FormField
+                    control={createOrgForm.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Organization Name</FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            placeholder="Sparkling Clean Services"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <FormField

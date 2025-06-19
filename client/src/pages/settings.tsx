@@ -36,7 +36,6 @@ const passwordChangeSchema = z.object({
 
 const companyUpdateSchema = z.object({
   name: z.string().min(1, "Company name is required"),
-  slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
   timezone: z.string().optional(),
   businessHours: z.string().optional(),
   defaultServices: z.string().optional(),

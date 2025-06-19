@@ -503,14 +503,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: fromZodError(result.error).toString() });
       }
 
-      // Check if slug is available
-      const existingOrg = await storage.getOrganizationBySlug(result.data.slug);
-      if (existingOrg) {
-        return res.status(400).json({ error: "Organization slug already taken" });
-      }
+      // Generate unique slug automatically
+      const slug = `org-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-      // Create organization
-      const organization = await storage.createOrganization(result.data);
+      // Create organization with auto-generated slug
+      const organizationData = {
+        ...result.data,
+        slug
+      };
+      const organization = await storage.createOrganization(organizationData);
       
       // Update user to be admin of this organization
       await storage.updateUserOrganization(req.user!.id, organization.id, "admin");
