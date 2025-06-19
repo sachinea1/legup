@@ -29,5 +29,14 @@ export function ProtectedRoute({
     );
   }
 
+  // Redirect to onboarding if user hasn't completed setup
+  if (!user.isOnboarded) {
+    return (
+      <Route path={path}>
+        <Redirect to="/onboarding" />
+      </Route>
+    );
+  }
+
   return <Route path={path} component={Component} />;
 }

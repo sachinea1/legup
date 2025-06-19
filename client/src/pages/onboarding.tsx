@@ -24,8 +24,7 @@ export default function OnboardingPage() {
   const [activeTab, setActiveTab] = useState("create");
 
   // Organization creation form
-  const createOrgForm = useForm<OrganizationSetup>({
-    resolver: zodResolver(organizationSetupSchema),
+  const createOrgForm = useForm({
     defaultValues: {
       name: "",
       slug: "",
@@ -38,15 +37,14 @@ export default function OnboardingPage() {
   });
 
   // Invitation acceptance form
-  const acceptForm = useForm<AcceptInvitation>({
-    resolver: zodResolver(acceptInvitationSchema),
+  const acceptForm = useForm({
     defaultValues: {
       token: ""
     }
   });
 
   const createOrgMutation = useMutation({
-    mutationFn: async (data: OrganizationSetup) => {
+    mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/organizations", data);
       return await res.json();
     },
@@ -68,7 +66,7 @@ export default function OnboardingPage() {
   });
 
   const acceptInvitationMutation = useMutation({
-    mutationFn: async (data: AcceptInvitation) => {
+    mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/invitations/accept", data);
       return await res.json();
     },
@@ -98,11 +96,11 @@ export default function OnboardingPage() {
       .trim();
   };
 
-  const onCreateOrg = (data: OrganizationSetup) => {
+  const onCreateOrg = (data: any) => {
     createOrgMutation.mutate(data);
   };
 
-  const onAcceptInvitation = (data: AcceptInvitation) => {
+  const onAcceptInvitation = (data: any) => {
     acceptInvitationMutation.mutate(data);
   };
 

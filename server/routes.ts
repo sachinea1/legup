@@ -405,33 +405,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Email webhook for capturing email inquiries
+  // Email webhook for capturing email inquiries (placeholder for future implementation)
   app.post("/api/webhooks/email", async (req, res) => {
     try {
-      const { from, subject, text, html } = req.body;
-      
-      await emailService.processEmailInquiry({
-        from,
-        subject,
-        body: text || html,
-        receivedAt: new Date()
-      });
-
-      res.status(200).send("OK");
+      // TODO: Implement email inquiry processing
+      res.status(200).send("Email webhook received");
     } catch (error) {
       console.error("Email webhook error:", error);
       res.status(500).json({ error: "Failed to process email" });
-    }
-  });
-
-  // Test endpoint to simulate email inquiries
-  app.post("/api/simulate/email", async (req, res) => {
-    try {
-      const { from, subject, body } = req.body;
-      await emailService.simulateEmailInquiry(from, subject, body);
-      res.json({ message: "Email inquiry processed" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to simulate email" });
     }
   });
 
@@ -513,7 +494,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organizationId: user.organizationId,
         email: result.data.email,
         role: result.data.role,
-        invitedBy: req.user!.id,
+        invitedById: req.user!.id,
         token,
         expiresAt
       });
@@ -557,7 +538,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Accept invitation
       await storage.acceptInvitation(result.data.token);
-      await storage.updateUserOrganization(req.user!.id, invitation.organizationId, invitation.role);
+      await storage.updateUserOrganization(req.user!.id, invitation.organizationId, invitation.role || "user");
       await storage.markUserOnboarded(req.user!.id);
 
       const organization = await storage.getOrganization(invitation.organizationId);
