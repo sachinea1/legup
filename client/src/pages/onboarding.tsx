@@ -48,13 +48,14 @@ export default function OnboardingPage() {
       const res = await apiRequest("POST", "/api/organizations", data);
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (organizationData) => {
       toast({
         title: "Organization created",
         description: "Your organization has been set up successfully!"
       });
-      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
-      setLocation("/");
+      // Clear all queries and force a full page refresh to ensure proper state update
+      queryClient.clear();
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       toast({
