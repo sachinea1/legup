@@ -18,6 +18,7 @@ import type { Lead, InsertLead } from "@shared/schema";
 import { manualLeadSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
+import { OnboardingOverlay } from "@/components/onboarding-overlay";
 import { useToast } from "@/hooks/use-toast";
 import { formatPhoneNumber, displayPhoneNumber } from "@/lib/phone";
 
@@ -550,6 +551,9 @@ export default function Leads() {
           </Card>
         )}
       </div>
+      
+      {/* Onboarding overlay for users who haven't completed organization setup */}
+      <OnboardingOverlay />
     </div>
   );
 }
