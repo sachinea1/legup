@@ -63,8 +63,8 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     {
       icon: Settings,
       label: "Settings",
-      href: "#",
-      active: false,
+      href: "/settings",
+      active: location === "/settings",
     },
   ];
 

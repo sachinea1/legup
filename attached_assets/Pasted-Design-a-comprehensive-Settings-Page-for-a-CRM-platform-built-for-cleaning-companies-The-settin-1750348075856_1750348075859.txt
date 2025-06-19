@@ -1,0 +1,123 @@
+Design a comprehensive **Settings Page** for a CRM platform built for cleaning companies. The settings page should be context-aware, dynamic based on the user’s **role** (owner, manager, staff), and intuitive. It will cover both **personal settings** (e.g. password, profile) and **organization-level settings** (e.g. inviting team members, managing roles, company info).
+
+# Objective:
+Build a unified Settings interface where users can manage their own account, and (based on their role) manage their organization's information and team access.
+
+---
+
+# 🧑‍💼 Personal Settings (Visible to all users)
+
+## ➤ Profile Info
+- Name
+- Email (read-only or editable depending on implementation)
+- Role (e.g., "Manager", "Staff" — read-only)
+- Organization name (read-only)
+- Avatar or profile photo (optional)
+
+## ➤ Change Password
+- Current password
+- New password
+- Confirm new password
+- Submit button + validation
+
+## ➤ Notification Preferences *(optional)*
+- Toggle job assignment email/SMS alerts
+- Toggle lead notifications
+- Toggle system updates
+
+---
+
+# 🏢 Organization Settings (Visible to Owner and Manager roles)
+
+## ➤ Company Info
+- Company Name
+- Slug / Subdomain (if used)
+- Timezone
+- Business Hours (e.g., Mon–Fri 9am–5pm)
+- Default Services (list of services offered like "Deep Clean", "Carpet Wash")
+- Save button
+
+## ➤ Team Management
+### Member List
+- Table of all team members with:
+  - Name
+  - Email
+  - Role
+  - Status (Active, Invited)
+  - "Remove" or "Change Role" options (only visible to owner/manager)
+
+### Invite New Team Member
+- Email input field(s) for invite
+- Role selector (`Staff`, `Manager`)
+- Send Invite button
+
+### Change Role (Only visible to Owners)
+- Dropdown to promote/demote users
+- Cannot change own role or demote other Owners
+
+### Remove Team Member
+- "Remove" button with confirmation prompt
+- Optional checkbox to reassign leads/jobs owned by removed user
+
+## ➤ Role Permissions Overview *(optional but recommended)*
+- Read-only table describing what each role can do
+  - View jobs, manage jobs, assign jobs, manage leads, invite users, manage settings
+
+---
+
+# 💳 Billing & Subscription *(Optional, if you're planning to charge businesses)*
+
+## ➤ Subscription Plan
+- Current plan
+- Number of active team members
+- Jobs/month limit
+- “Upgrade Plan” button (links to Stripe or billing UI)
+
+## ➤ Payment Method
+- Card on file (masked)
+- Expiry date
+- Replace card
+
+## ➤ Invoices
+- List of past invoices
+- Download PDF option
+
+---
+
+# 🔐 Security (Optional advanced settings)
+- List of logged-in devices/sessions
+- Option to log out from all devices
+- 2FA toggle (if implemented)
+- Audit log (if Owner/Manager): Shows recent critical actions (e.g. "John removed a team member", "Job reassigned")
+
+---
+
+# ✨ General UX Requirements
+- Responsive design
+- Tabbed interface or sidebar nav (`Personal`, `Organization`, `Billing`, `Security`)
+- Sticky save buttons with real-time validation
+- Role-based conditional rendering (hide org/team settings for `staff`)
+- Clean visual hierarchy, ideally using cards or sections
+
+---
+
+# Permissions Matrix Summary
+
+| Section                 | Owner | Manager | Staff |
+|-------------------------|-------|---------|-------|
+| View & Edit Profile     | ✅    | ✅      | ✅    |
+| Change Password         | ✅    | ✅      | ✅    |
+| View Company Info       | ✅    | ✅      | 🚫    |
+| Edit Company Info       | ✅    | ✅      | 🚫    |
+| Invite Team Members     | ✅    | ✅      | 🚫    |
+| Manage Roles            | ✅    | 🚫      | 🚫    |
+| Remove Users            | ✅    | 🚫      | 🚫    |
+| Billing Section         | ✅    | 🚫      | 🚫    |
+| Audit Log               | ✅    | ✅      | 🚫    |
+
+---
+
+# Deliverable:
+A full-featured, secure, and dynamic settings page that gives each user only the tools and controls appropriate for their role. It should feel clean and modern, inspired by apps like Notion, Slack, and Linear.
+
+Let me know if you'd like UI wireframe suggestions or route breakdowns for implementation.

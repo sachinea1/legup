@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import Dashboard from "@/pages/dashboard";
 import Leads from "@/pages/leads";
+import Settings from "@/pages/settings";
 import Widget from "@/pages/widget";
 import AuthPage from "@/pages/auth";
 import OnboardingPage from "@/pages/onboarding";
@@ -37,6 +38,7 @@ function Router() {
         <ProtectedRoute path="/" component={Dashboard} />
         <ProtectedRoute path="/dashboard" component={Dashboard} />
         <ProtectedRoute path="/leads" component={Leads} />
+        <ProtectedRoute path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>
