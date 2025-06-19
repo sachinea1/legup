@@ -156,9 +156,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/auth/me", authenticateToken, async (req, res) => {
-    res.json({
-      user: { id: req.user!.id, email: req.user!.email, name: req.user!.name }
-    });
+    try {
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      res.json({ user });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch user" });
+    }
+  });
+
+  // Update user profile
+  app.patch("/api/auth/profile", authenticateToken, async (req, res) => {
+    try {
+      const updateSchema = z.object({
+        name: z.string().min(1, "Name is required"),
+        email: z.string().email("Invalid email address"),
+      });
+      
+      const validatedData = updateSchema.parse(req.body);
+      
+      // Check if email is already taken by another user
+      const currentUser = await storage.getUser(req.user!.id);
+      if (validatedData.email !== currentUser?.email) {
+        const existingUser = await storage.getUserByEmail(validatedData.email);
+        if (existingUser && existingUser.id !== req.user!.id) {
+          return res.status(400).json({ error: "Email already taken" });
+        }
+      }
+      
+      // Update user
+      const updatedUser = await storage.updateUser(req.user!.id, {
+        name: validatedData.name,
+        email: validatedData.email,
+      });
+      
+      res.json({ user: updatedUser });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: fromZodError(error).toString() });
+      }
+      console.error("Profile update error:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
+  });
+
+  // Change password
+  app.post("/api/auth/change-password", authenticateToken, async (req, res) => {
+    try {
+      const changePasswordSchema = z.object({
+        currentPassword: z.string().min(1, "Current password is required"),
+        newPassword: z.string().min(8, "Password must be at least 8 characters"),
+      });
+      
+      const validatedData = changePasswordSchema.parse(req.body);
+      
+      // Get current user
+      const user = await storage.getUser(req.user!.id);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Verify current password
+      const isValidPassword = await AuthService.comparePassword(validatedData.currentPassword, user.passwordHash);
+      if (!isValidPassword) {
+        return res.status(400).json({ error: "Current password is incorrect" });
+      }
+      
+      // Hash new password
+      const newPasswordHash = await AuthService.hashPassword(validatedData.newPassword);
+      
+      // Update password
+      await storage.updateUserPassword(user.id, newPasswordHash);
+      
+      res.json({ message: "Password changed successfully" });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: fromZodError(error).toString() });
+      }
+      console.error("Password change error:", error);
+      res.status(500).json({ error: "Failed to change password" });
+    }
   });
 
   // Protect admin routes with authentication
@@ -463,6 +542,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(organization);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch organization" });
+    }
+  });
+
+  // Update organization
+  app.patch("/api/organizations/:id", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updateSchema = z.object({
+        name: z.string().min(1, "Company name is required"),
+        slug: z.string().min(1, "Slug is required").regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
+        timezone: z.string().optional(),
+        businessHours: z.string().optional(),
+        defaultServices: z.string().optional(),
+      }).transform(data => ({
+        name: data.name,
+        slug: data.slug,
+        settings: {
+          timezone: data.timezone,
+          businessHours: data.businessHours ? [data.businessHours] : undefined,
+          defaultServices: data.defaultServices ? data.defaultServices.split(',').map(s => s.trim()) : undefined,
+        }
+      }));
+      
+      const validatedData = updateSchema.parse(req.body);
+      
+      // Check if user belongs to this organization and has permission
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== parseInt(id) || !["admin", "manager"].includes(user.role || "")) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      // Check if slug is available (excluding current organization)
+      if (validatedData.slug) {
+        const existingOrg = await storage.getOrganizationBySlug(validatedData.slug);
+        if (existingOrg && existingOrg.id !== parseInt(id)) {
+          return res.status(400).json({ error: "Organization slug already taken" });
+        }
+      }
+
+      const updatedOrganization = await storage.updateOrganization(parseInt(id), validatedData);
+      res.json(updatedOrganization);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: fromZodError(error).toString() });
+      }
+      console.error("Organization update error:", error);
+      res.status(500).json({ error: "Failed to update organization" });
+    }
+  });
+
+  // Get organization members
+  app.get("/api/organizations/:id/members", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if user belongs to this organization and has permission
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== parseInt(id) || !["admin", "manager"].includes(user.role || "")) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const members = await storage.getOrganizationUsers(parseInt(id));
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch organization members" });
+    }
+  });
+
+  // Get organization invitations
+  app.get("/api/organizations/:id/invitations", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Check if user belongs to this organization and has permission
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== parseInt(id) || !["admin", "manager"].includes(user.role || "")) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const invitations = await storage.getOrganizationInvitations(parseInt(id));
+      res.json(invitations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch organization invitations" });
+    }
+  });
+
+  // Invite team member
+  app.post("/api/organizations/:id/invite", authenticateToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const result = inviteTeamMemberSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: fromZodError(result.error).toString() });
+      }
+
+      // Check if user belongs to this organization and has permission
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== parseInt(id) || !["admin", "manager"].includes(user.role || "")) {
+        return res.status(403).json({ error: "Insufficient permissions" });
+      }
+
+      // Check if email is already a user
+      const existingUser = await storage.getUserByEmail(result.data.email);
+      if (existingUser?.organizationId) {
+        return res.status(400).json({ error: "User already belongs to an organization" });
+      }
+
+      // Generate invitation token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+      const invitation = await storage.createInvitation({
+        organizationId: parseInt(id),
+        email: result.data.email,
+        role: result.data.role,
+        invitedById: req.user!.id,
+        token,
+        expiresAt
+      });
+
+      res.status(201).json(invitation);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: fromZodError(error).toString() });
+      }
+      console.error("Invitation error:", error);
+      res.status(500).json({ error: "Failed to send invitation" });
+    }
+  });
+
+  // Remove team member
+  app.delete("/api/organizations/:orgId/members/:userId", authenticateToken, async (req, res) => {
+    try {
+      const { orgId, userId } = req.params;
+      
+      // Check if user belongs to this organization and is admin
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== parseInt(orgId) || user.role !== "admin") {
+        return res.status(403).json({ error: "Only admins can remove team members" });
+      }
+
+      // Prevent removing self
+      if (req.user!.id === parseInt(userId)) {
+        return res.status(400).json({ error: "Cannot remove yourself" });
+      }
+
+      await storage.removeUserFromOrganization(parseInt(userId));
+      res.json({ message: "User removed successfully" });
+    } catch (error) {
+      console.error("Remove user error:", error);
+      res.status(500).json({ error: "Failed to remove user" });
+    }
+  });
+
+  // Change user role
+  app.patch("/api/organizations/:orgId/members/:userId/role", authenticateToken, async (req, res) => {
+    try {
+      const { orgId, userId } = req.params;
+      const { role } = req.body;
+      
+      if (!["user", "manager", "admin"].includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+      
+      // Check if user belongs to this organization and is admin
+      const user = await storage.getUser(req.user!.id);
+      if (user?.organizationId !== parseInt(orgId) || user.role !== "admin") {
+        return res.status(403).json({ error: "Only admins can change user roles" });
+      }
+
+      // Prevent changing own role
+      if (req.user!.id === parseInt(userId)) {
+        return res.status(400).json({ error: "Cannot change your own role" });
+      }
+
+      await storage.updateUserOrganization(parseInt(userId), parseInt(orgId), role);
+      res.json({ message: "User role updated successfully" });
+    } catch (error) {
+      console.error("Change role error:", error);
+      res.status(500).json({ error: "Failed to change user role" });
     }
   });
 

@@ -14,11 +14,13 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByResetToken(token: string): Promise<User | undefined>;
+  updateUser(id: number, updates: { name?: string; email?: string }): Promise<User | undefined>;
   updateUserResetToken(id: number, token: string | null, expiry: Date | null): Promise<void>;
   updateUserPassword(id: number, passwordHash: string): Promise<void>;
   updateUserOrganization(id: number, organizationId: number, role: string): Promise<void>;
   markUserOnboarded(id: number): Promise<void>;
   getOrganizationUsers(organizationId: number): Promise<User[]>;
+  removeUserFromOrganization(id: number): Promise<void>;
   
   // Invitation operations
   createInvitation(invitation: InsertInvitation & { token: string; expiresAt: Date }): Promise<Invitation>;
@@ -169,6 +171,22 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(users)
       .where(eq(users.organizationId, organizationId));
+  }
+
+  async updateUser(id: number, updates: { name?: string; email?: string }): Promise<User | undefined> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, id))
+      .returning();
+    return updatedUser || undefined;
+  }
+
+  async removeUserFromOrganization(id: number): Promise<void> {
+    await db
+      .update(users)
+      .set({ organizationId: null, role: null })
+      .where(eq(users.id, id));
   }
 
   // Invitation operations
