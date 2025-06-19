@@ -72,7 +72,11 @@ class FollowUpJob {
 
   private async scheduleNewFollowUps() {
     // Get leads that need follow-up (new leads older than 2 hours without follow-up)
-    const leads = await storage.getLeads("new");
+    // For now, use admin user (will be improved with organization support)
+    const adminUser = await storage.getUserByEmail("test@cleanflow.com");
+    if (!adminUser) return;
+    
+    const leads = await storage.getLeads(adminUser.id, "new");
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
     for (const lead of leads) {

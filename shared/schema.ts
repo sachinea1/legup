@@ -18,7 +18,7 @@ export const organizations = pgTable("organizations", {
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name").notNull(),
@@ -31,7 +31,7 @@ export const users = pgTable("users", {
 
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id),
   ownerId: integer("owner_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
@@ -51,7 +51,7 @@ export const leads = pgTable("leads", {
 
 export const appointments = pgTable("appointments", {
   id: serial("id").primaryKey(),
-  organizationId: integer("organization_id").references(() => organizations.id).notNull(),
+  organizationId: integer("organization_id").references(() => organizations.id),
   leadId: integer("lead_id").references(() => leads.id),
   customerName: text("customer_name").notNull(),
   customerPhone: varchar("customer_phone", { length: 20 }).notNull(),
@@ -190,6 +190,7 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 export const insertLeadSchema = createInsertSchema(leads).omit({
   id: true,
+  organizationId: true,
   ownerId: true,
   createdAt: true,
   updatedAt: true,
@@ -261,6 +262,9 @@ export const passwordResetSchema = z.object({
 });
 
 // Types
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type LoginData = z.infer<typeof loginSchema>;
