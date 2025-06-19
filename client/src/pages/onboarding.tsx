@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +53,7 @@ export default function OnboardingPage() {
         title: "Organization created",
         description: "Your organization has been set up successfully!"
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       setLocation("/");
     },
     onError: (error: Error) => {
@@ -75,7 +75,7 @@ export default function OnboardingPage() {
         title: "Invitation accepted",
         description: "Welcome to your new organization!"
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
       setLocation("/");
     },
     onError: (error: Error) => {
@@ -104,8 +104,15 @@ export default function OnboardingPage() {
     acceptInvitationMutation.mutate(data);
   };
 
+  // Redirect to dashboard if user is already onboarded
+  useEffect(() => {
+    if (user?.isOnboarded) {
+      setLocation("/");
+    }
+  }, [user?.isOnboarded, setLocation]);
+
+  // Don't render if user is onboarded (redirect in progress)
   if (user?.isOnboarded) {
-    setLocation("/");
     return null;
   }
 
