@@ -46,12 +46,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         passwordHash,
       });
 
-      // Generate JWT
+      // Generate JWT and set httpOnly cookie
       const token = AuthService.generateJWT(user.id);
+
+      res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 1000 // 1 hour
+      });
 
       res.status(201).json({
         user: { id: user.id, email: user.email, name: user.name },
-        token,
+        token, // Still return token for frontend compatibility
       });
     } catch (error: any) {
       if (error.name === 'ZodError') {
@@ -78,12 +85,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid email or password" });
       }
 
-      // Generate JWT
+      // Generate JWT and set httpOnly cookie
       const token = AuthService.generateJWT(user.id);
+
+      res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 1000 // 1 hour
+      });
 
       res.json({
         user: { id: user.id, email: user.email, name: user.name },
-        token,
+        token, // Still return token for frontend compatibility
       });
     } catch (error: any) {
       if (error.name === 'ZodError') {

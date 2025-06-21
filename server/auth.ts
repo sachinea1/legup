@@ -50,8 +50,13 @@ export class AuthService {
 }
 
 export function authenticateToken(req: Request, res: Response, next: NextFunction) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+  // Check for token in httpOnly cookie first, then fallback to Authorization header
+  let token = req.cookies?.auth_token;
+  
+  if (!token) {
+    const authHeader = req.headers["authorization"];
+    token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+  }
 
   if (!token) {
     return res.status(401).json({ error: "Access token required" });
