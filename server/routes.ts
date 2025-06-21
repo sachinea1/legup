@@ -342,6 +342,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/leads", authenticateToken, async (req, res) => {
     try {
       const { status, limit } = req.query;
+      // Filter leads by user ownership - data isolation
       const leads = await storage.getLeads(
         req.user!.id,
         status as string,

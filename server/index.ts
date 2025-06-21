@@ -3,6 +3,7 @@ import { config } from "dotenv";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { followUpJob } from "./jobs/followUp";
+import cookieParser from "cookie-parser";
 
 // Load environment variables from root directory
 console.log('Current working directory:', process.cwd());
@@ -17,6 +18,7 @@ console.log('TWILIO_ACCOUNT_SID present:', !!process.env.TWILIO_ACCOUNT_SID);
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 app.use((req, res, next) => {
   const start = Date.now();
