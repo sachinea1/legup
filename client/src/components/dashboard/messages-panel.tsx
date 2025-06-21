@@ -18,7 +18,10 @@ export function MessagesPanel() {
     queryKey: ['/api/messages', selectedPhone],
     queryFn: async () => {
       const params = selectedPhone ? `?phone=${selectedPhone}` : "";
-      const response = await fetch(`/api/messages${params}`);
+      const response = await fetch(`/api/messages${params}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch messages');
       return response.json();
     },
   });

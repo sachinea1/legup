@@ -17,7 +17,10 @@ export function LeadsTable() {
     queryKey: ['/api/leads', statusFilter === "all" ? undefined : statusFilter],
     queryFn: async () => {
       const params = statusFilter === "all" ? "" : `?status=${statusFilter}`;
-      const response = await fetch(`/api/leads${params}`);
+      const response = await fetch(`/api/leads${params}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch leads');
       return response.json();
     },
   });

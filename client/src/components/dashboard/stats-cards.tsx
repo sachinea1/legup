@@ -5,6 +5,13 @@ import { Users, TrendingUp, Calendar, DollarSign } from "lucide-react";
 export function StatsCards() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['/api/stats'],
+    queryFn: async () => {
+      const response = await fetch('/api/stats', {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch stats');
+      return response.json();
+    },
   });
 
   if (isLoading) {

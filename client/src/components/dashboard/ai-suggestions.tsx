@@ -14,6 +14,13 @@ interface AISuggestion {
 export function AISuggestions() {
   const { data: suggestions = [], isLoading } = useQuery<AISuggestion[]>({
     queryKey: ["/api/suggestions"],
+    queryFn: async () => {
+      const response = await fetch('/api/suggestions', {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch suggestions');
+      return response.json();
+    },
   });
 
   const getIcon = (type: string) => {

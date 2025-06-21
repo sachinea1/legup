@@ -11,7 +11,12 @@ export function CalendarView() {
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['/api/appointments', today],
     queryFn: async () => {
-      const response = await fetch(`/api/appointments?date=${today}`);
+      const response = await fetch(`/api/appointments?date=${today}`, {
+        credentials: 'include', // Include httpOnly cookies
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch appointments');
+      }
       return response.json();
     },
   });
@@ -86,7 +91,7 @@ export function CalendarView() {
               No appointments scheduled for today
             </div>
           ) : (
-            appointments?.map((appointment: Appointment) => {
+            Array.isArray(appointments) ? appointments.map((appointment: Appointment) => {
               const timeInfo = formatTime(appointment.scheduledDate);
               
               return (
@@ -120,7 +125,9 @@ export function CalendarView() {
                   </div>
                 </div>
               );
-            })
+            }) : (
+              <div className="text-center py-8 text-gray-500">Loading appointments...</div>
+            )
           )}
         </div>
       </CardContent>
