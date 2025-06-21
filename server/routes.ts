@@ -19,11 +19,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Rate limiting for auth endpoints
   const authRateLimit = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 attempts per window
+    max: 10, // Increase limit for development
     message: { error: "Too many authentication attempts, please try again later" },
     standardHeaders: true,
     legacyHeaders: false,
-    trustProxy: true, // Fix for X-Forwarded-For header issue
+    skip: (req) => process.env.NODE_ENV === 'development', // Skip rate limiting in dev
   });
 
   // Auth endpoints
@@ -52,9 +52,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 1000 // 1 hour
+        secure: false, // Set to false for development
+        sameSite: 'lax', // Change to lax for better compatibility
+        maxAge: 60 * 60 * 1000, // 1 hour
+        path: '/' // Ensure cookie is available for all paths
       });
 
       res.status(201).json({
@@ -91,9 +92,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 60 * 60 * 1000 // 1 hour
+        secure: false, // Set to false for development
+        sameSite: 'lax', // Change to lax for better compatibility
+        maxAge: 60 * 60 * 1000, // 1 hour
+        path: '/' // Ensure cookie is available for all paths
       });
 
       res.json({
