@@ -5,6 +5,7 @@ import { Users, TrendingUp, Calendar, DollarSign } from "lucide-react";
 export function StatsCards() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ['/api/stats'],
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
       const response = await fetch('/api/stats', {
         credentials: 'include',

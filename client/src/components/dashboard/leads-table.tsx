@@ -15,6 +15,7 @@ export function LeadsTable() {
 
   const { data: leads, isLoading, refetch } = useQuery({
     queryKey: ['/api/leads', statusFilter === "all" ? undefined : statusFilter],
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
       const params = statusFilter === "all" ? "" : `?status=${statusFilter}`;
       const response = await fetch(`/api/leads${params}`, {

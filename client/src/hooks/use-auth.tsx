@@ -74,6 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store token in localStorage as fallback for browser compatibility
       localStorage.setItem("auth_token", data.token);
       queryClient.setQueryData(["auth", "me"], data.user);
+      
+      // Clear all cached data to ensure fresh user-specific data  
+      queryClient.clear();
+      
       toast({
         title: "Login successful",
         description: "Welcome back!",

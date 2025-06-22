@@ -10,6 +10,7 @@ export function CalendarView() {
   
   const { data: appointments, isLoading } = useQuery({
     queryKey: ['/api/appointments', today],
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
       const response = await fetch(`/api/appointments?date=${today}`, {
         credentials: 'include', // Include httpOnly cookies

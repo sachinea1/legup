@@ -16,6 +16,7 @@ export function MessagesPanel() {
 
   const { data: messages, isLoading } = useQuery({
     queryKey: ['/api/messages', selectedPhone],
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
       const params = selectedPhone ? `?phone=${selectedPhone}` : "";
       const response = await fetch(`/api/messages${params}`, {

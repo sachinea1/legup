@@ -14,6 +14,7 @@ interface AISuggestion {
 export function AISuggestions() {
   const { data: suggestions = [], isLoading } = useQuery<AISuggestion[]>({
     queryKey: ["/api/suggestions"],
+    staleTime: 0, // Always fetch fresh data
     queryFn: async () => {
       const response = await fetch('/api/suggestions', {
         credentials: 'include',
