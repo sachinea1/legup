@@ -184,6 +184,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Logout endpoint
+  app.post("/api/auth/logout", (req, res) => {
+    // Clear httpOnly cookie
+    res.clearCookie('auth_token', {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      path: '/'
+    });
+    res.json({ message: "Logged out successfully" });
+  });
+
   // Update user profile
   app.patch("/api/auth/profile", authenticateToken, async (req, res) => {
     try {

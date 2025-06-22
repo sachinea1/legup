@@ -126,26 +126,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
+      // Clear localStorage first to prevent auto-login
+      localStorage.removeItem("auth_token");
+      
       await fetch("/api/auth/logout", {
         method: "POST",
         credentials: 'include',
       });
     },
     onSuccess: () => {
-      // Clear localStorage token
+      // Ensure localStorage is cleared
       localStorage.removeItem("auth_token");
       queryClient.setQueryData(["auth", "me"], null);
-      queryClient.clear(); // Clear all cached data
+      queryClient.clear();
       
-      // Immediate redirect to login
+      // Force page reload to clear all state
       window.location.href = '/auth';
+      window.location.reload();
     },
     onError: () => {
-      // Even if logout fails, clear local data and redirect
+      // Clear everything even on error
       localStorage.removeItem("auth_token");
       queryClient.setQueryData(["auth", "me"], null);
       queryClient.clear();
       window.location.href = '/auth';
+      window.location.reload();
     },
   });
 
