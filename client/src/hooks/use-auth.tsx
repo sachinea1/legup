@@ -71,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await response.json();
     },
     onSuccess: (data) => {
+      // Store token in localStorage as fallback for browser compatibility
+      localStorage.setItem("auth_token", data.token);
       queryClient.setQueryData(["auth", "me"], data.user);
       toast({
         title: "Login successful",
@@ -105,6 +107,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return await response.json();
     },
     onSuccess: (data) => {
+      // Store token in localStorage as fallback for browser compatibility
+      localStorage.setItem("auth_token", data.token);
       queryClient.setQueryData(["auth", "me"], data.user);
       toast({
         title: "Account created",
@@ -128,6 +132,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
     onSuccess: () => {
+      // Clear localStorage token
+      localStorage.removeItem("auth_token");
       queryClient.setQueryData(["auth", "me"], null);
       queryClient.invalidateQueries();
       toast({

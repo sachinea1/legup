@@ -50,12 +50,16 @@ export class AuthService {
 }
 
 export function authenticateToken(req: Request, res: Response, next: NextFunction) {
-  // Check for token in httpOnly cookie first, then fallback to Authorization header
-  let token = req.cookies?.auth_token;
+  // Check for token in Authorization header first, then fallback to httpOnly cookie
+  let token = null;
+  
+  const authHeader = req.headers["authorization"];
+  if (authHeader) {
+    token = authHeader.split(" ")[1]; // Bearer TOKEN
+  }
   
   if (!token) {
-    const authHeader = req.headers["authorization"];
-    token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
+    token = req.cookies?.auth_token;
   }
 
   if (!token) {
