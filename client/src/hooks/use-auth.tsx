@@ -135,11 +135,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear localStorage token
       localStorage.removeItem("auth_token");
       queryClient.setQueryData(["auth", "me"], null);
-      queryClient.invalidateQueries();
-      toast({
-        title: "Logged out",
-        description: "You have been logged out successfully",
-      });
+      queryClient.clear(); // Clear all cached data
+      
+      // Immediate redirect to login
+      window.location.href = '/auth';
+    },
+    onError: () => {
+      // Even if logout fails, clear local data and redirect
+      localStorage.removeItem("auth_token");
+      queryClient.setQueryData(["auth", "me"], null);
+      queryClient.clear();
+      window.location.href = '/auth';
     },
   });
 
