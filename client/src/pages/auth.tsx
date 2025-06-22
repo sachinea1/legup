@@ -16,6 +16,7 @@ export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { user, loginMutation, signupMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
+  const [showOrgJoin, setShowOrgJoin] = useState(false);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -158,17 +159,21 @@ function LoginForm() {
 function SignupForm() {
   const { signupMutation } = useAuth();
   const [, setLocation] = useLocation();
+  const [showOrgJoin, setShowOrgJoin] = useState(false);
 
-  const form = useForm<InsertUser>({
-    resolver: zodResolver(insertUserSchema),
+  const form = useForm<InsertUser & { organizationSlug?: string }>({
+    resolver: zodResolver(insertUserSchema.extend({
+      organizationSlug: z.string().optional(),
+    })),
     defaultValues: {
       name: "",
       email: "",
       password: "",
+      organizationSlug: "",
     },
   });
 
-  const onSubmit = (data: InsertUser) => {
+  const onSubmit = (data: InsertUser & { organizationSlug?: string }) => {
     signupMutation.mutate(data, {
       onSuccess: () => {
         setLocation("/");

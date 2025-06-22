@@ -33,7 +33,7 @@ export function StatsCards() {
     {
       title: "Total Leads",
       value: stats?.totalLeads || 0,
-      change: "+12% from last week",
+      change: stats?.totalLeads > 0 ? `${stats.newLeads} new this week` : "No leads yet",
       icon: Users,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
@@ -41,7 +41,7 @@ export function StatsCards() {
     {
       title: "Conversion Rate",
       value: `${stats?.conversionRate || 0}%`,
-      change: "+5% from last week",
+      change: stats?.conversionRate > 0 ? "Based on closed deals" : "No conversions yet",
       icon: TrendingUp,
       iconBg: "bg-green-100",
       iconColor: "text-green-600",
@@ -49,18 +49,18 @@ export function StatsCards() {
     {
       title: "Active Bookings",
       value: stats?.activeBookings || 0,
-      change: "3 pending today",
+      change: stats?.activeBookings > 0 ? `${stats.activeBookings} scheduled` : "No bookings yet",
       icon: Calendar,
       iconBg: "bg-amber-100",
       iconColor: "text-amber-600",
     },
     {
       title: "Monthly Revenue",
-      value: "$8,340",
-      change: "+18% from last month",
+      value: stats?.monthlyRevenue ? `$${stats.monthlyRevenue.toLocaleString()}` : "$0",
+      change: stats?.monthlyRevenue > 0 ? "From completed jobs" : "No revenue yet",
       icon: DollarSign,
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600",
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-600",
     },
   ];
 

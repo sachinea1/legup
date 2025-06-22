@@ -460,6 +460,7 @@ export class DatabaseStorage implements IStorage {
     newLeads: number;
     conversionRate: number;
     activeBookings: number;
+    monthlyRevenue: number;
   }> {
     const allLeads = await db.select().from(leads).where(eq(leads.ownerId, ownerId));
     const newLeads = allLeads.filter(lead => lead.status === "new");
@@ -480,6 +481,7 @@ export class DatabaseStorage implements IStorage {
       newLeads: newLeads.length,
       conversionRate: allLeads.length > 0 ? Math.round((bookedLeads.length / allLeads.length) * 100) : 0,
       activeBookings: activeAppointments.length,
+      monthlyRevenue: 0, // Will be implemented when payment tracking is added
     };
   }
 }
