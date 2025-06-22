@@ -63,6 +63,7 @@ export interface IStorage {
     newLeads: number;
     conversionRate: number;
     activeBookings: number;
+    monthlyRevenue: number;
   }>;
 }
 
