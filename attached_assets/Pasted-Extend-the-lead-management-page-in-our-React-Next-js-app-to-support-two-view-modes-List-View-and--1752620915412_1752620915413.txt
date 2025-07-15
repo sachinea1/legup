@@ -1,0 +1,42 @@
+Extend the lead management page in our React/Next.js app to support two view modes—“List View” and “Kanban View”—with a top navigation bar for switching between them. Both views must consume the same leads data and shared updateLead callback, without re‑fetching or losing state. 
+
+Requirements:
+
+1. TopNav Component  
+   - Render at the top of the lead management page a horizontal tab bar with two options: “List View” and “Kanban View.” :contentReference[oaicite:0]{index=0}  
+   - Use React state (e.g. `const [viewMode,setViewMode]=useState('list')`) to track active tab and visually highlight the selected tab via underline or background color :contentReference[oaicite:1]{index=1}.
+
+2. Data Layer  
+   - Implement a custom hook or context `useLeads` that fetches leads once from Supabase/your API and provides `{ leads, updateLead }` to both views :contentReference[oaicite:2]{index=2}.  
+   - Memoize or cache data to prevent unnecessary reloads when toggling views.
+
+3. ListView Component  
+   - Consider the current implementation as the list view. the only change to the current implementation is how the navigation bar for different stages of the pipeline (new, contacted etc). make the navigation bar a single bar without gaps and each individual nav item as an arrow pointing to the next stage of the pipeline.
+
+4. KanbanView Component  
+   - Use `react-beautiful-dnd` to create a Kanban board with columns: **New**, **Contacted**, **Qualified**, **Appointment Set**, **Completed** :contentReference[oaicite:3]{index=3}.  
+   - Each column header must show a real‑time count of cards and optionally average time-in-stage :contentReference[oaicite:4]{index=4}.  
+   - Lead cards should display key info (lead name, contact info, priority badge) and support color‑coding by priority: red for high, yellow for medium, green for low :contentReference[oaicite:5]{index=5}.  
+   - Enable drag‑and‑drop to update a lead’s `stage` field via `updateLead` callback :contentReference[oaicite:6]{index=6}.  
+   - Use labels/tags on cards for service type (e.g., “Standard Clean,” “Deep Clean”) with distinct background colors :contentReference[oaicite:7]{index=7}.  
+   - Implement optional WIP limits per column (e.g., max 10 New leads) with visual warning if exceeded :contentReference[oaicite:8]{index=8}.  
+   - Provide automated notifications: on drop, trigger a toast or snackbar confirming stage change :contentReference[oaicite:9]{index=9}.
+
+5. Filters & Search  
+   - Above the board, add a persistent search bar and filter dropdowns (lead source, date range, assigned cleaner) that filter both ListView and KanbanView without refetching data :contentReference[oaicite:10]{index=10}.
+
+6. Responsive & Accessible  
+   - Ensure the Kanban board collapses to a swipeable single‑column view on mobile and that color distinctions are supplemented by icons or labels for color‑blind accessibility :contentReference[oaicite:11]{index=11}.
+
+7. Styling & Theming  
+   - Use Tailwind CSS or CSS modules for styling consistency.  
+   - Define a color palette for stages and priorities in a theme file so both views share visual consistency :contentReference[oaicite:12]{index=12}.  
+   - Highlight the active tab in the TopNav with the primary brand color.
+
+Deliverables:  
+- TopNav.js with tab switching logic  
+- Updated lead management page wiring `viewMode` and conditional rendering  
+- KanbanView.js skeleton with drag‑and‑drop and color‑coded cards  
+- useLeads hook/context for shared data  
+- Filter/Search component above both views  
+- Theme file with color definitions for stages and priorities  
