@@ -2,20 +2,29 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Phone, Mail, MapPin, ChevronDown, ChevronRight, MessageSquare, Calendar } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Phone, Mail, MapPin, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import type { Lead } from "@shared/schema";
-import { getStatusTheme, getPriorityTheme, getServiceTypeTheme } from "@/lib/theme";
+import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
 
 interface ListViewProps {
   leads: Lead[];
   onUpdateLeadStatus: (id: number, status: string) => void;
   isUpdating: boolean;
+  highPriorityOnly: boolean;
+  onHighPriorityChange: (enabled: boolean) => void;
 }
 
-export function ListView({ leads, onUpdateLeadStatus, isUpdating }: ListViewProps) {
+export function ListView({ 
+  leads, 
+  onUpdateLeadStatus, 
+  isUpdating, 
+  highPriorityOnly, 
+  onHighPriorityChange 
+}: ListViewProps) {
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
 
   const toggleLeadExpansion = (leadId: number) => {
@@ -30,60 +39,32 @@ export function ListView({ leads, onUpdateLeadStatus, isUpdating }: ListViewProp
     });
   };
 
-  // Status navigation bar with arrow design
-  const statusStages = [
-    { value: "new", label: "New" },
-    { value: "contacted", label: "Contacted" },
-    { value: "qualified", label: "Qualified" },
-    { value: "appointment_set", label: "Appointment Set" },
-    { value: "closed_won", label: "Closed Won" },
-    { value: "closed_lost", label: "Closed Lost" },
-  ];
+  // Sort leads: high priority first if toggle is on, then by status, then by creation date
+  const sortedLeads = [...leads].sort((a, b) => {
+    if (highPriorityOnly) {
+      const aIsHigh = a.priority === "high" || a.priority === "urgent";
+      const bIsHigh = b.priority === "high" || b.priority === "urgent";
+      if (aIsHigh && !bIsHigh) return -1;
+      if (!aIsHigh && bIsHigh) return 1;
+    }
+    
+    // Sort by status order
+    const statusOrder = ["new", "contacted", "qualified", "appointment_set", "closed_won", "closed_lost"];
+    const statusDiff = statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+    if (statusDiff !== 0) return statusDiff;
+    
+    // Sort by creation date (newest first)
+    const aDate = new Date(a.createdAt || 0);
+    const bDate = new Date(b.createdAt || 0);
+    return bDate.getTime() - aDate.getTime();
+  });
 
-  const StatusNavigationBar = ({ currentStatus, onStatusChange, leadId }: { 
-    currentStatus: string; 
-    onStatusChange: (status: string) => void;
-    leadId: number;
-  }) => (
-    <div className="flex items-center bg-gray-50 rounded-lg p-1 gap-0">
-      {statusStages.map((stage, index) => {
-        const isActive = currentStatus === stage.value;
-        const isCompleted = statusStages.findIndex(s => s.value === currentStatus) > index;
-        
-        return (
-          <div key={stage.value} className="flex items-center">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onStatusChange(stage.value)}
-              disabled={isUpdating}
-              className={`
-                relative h-8 px-3 text-xs font-medium transition-all
-                ${isActive 
-                  ? "bg-blue-600 text-white shadow-sm" 
-                  : isCompleted
-                  ? "bg-green-100 text-green-700 hover:bg-green-200"
-                  : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
-                }
-                ${index === 0 ? "rounded-l-md" : ""}
-                ${index === statusStages.length - 1 ? "rounded-r-md" : ""}
-                ${index > 0 ? "-ml-1" : ""}
-              `}
-              style={{
-                clipPath: index === statusStages.length - 1 
-                  ? "none" 
-                  : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)"
-              }}
-            >
-              {stage.label}
-            </Button>
-          </div>
-        );
-      })}
-    </div>
-  );
+  // Filter leads if high priority only is enabled
+  const filteredLeads = highPriorityOnly 
+    ? sortedLeads.filter(lead => lead.priority === "high" || lead.priority === "urgent")
+    : sortedLeads;
 
-  if (leads.length === 0) {
+  if (filteredLeads.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-500 text-lg">No leads found</div>
@@ -93,20 +74,39 @@ export function ListView({ leads, onUpdateLeadStatus, isUpdating }: ListViewProp
   }
 
   return (
-    <div className="space-y-3">
-      {leads.map((lead) => {
-        const isExpanded = expandedLeads.has(lead.id);
-        const priorityTheme = getPriorityTheme(lead.priority || "normal");
-        const statusTheme = getStatusTheme(lead.status);
-        const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
+    <div className="space-y-4">
+      {/* High Priority Toggle */}
+      <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
+        <div>
+          <Label htmlFor="high-priority-toggle" className="text-sm font-medium">
+            Show High Priority Only
+          </Label>
+          <p className="text-xs text-gray-500 mt-1">
+            Display only urgent and high priority leads at the top
+          </p>
+        </div>
+        <Switch
+          id="high-priority-toggle"
+          checked={highPriorityOnly}
+          onCheckedChange={onHighPriorityChange}
+        />
+      </div>
 
-        return (
-          <Card 
-            key={lead.id} 
-            className={`transition-all duration-200 border-l-4 ${priorityTheme.cardAccent} ${
-              isExpanded ? 'shadow-md' : 'hover:shadow-sm'
-            }`}
-          >
+      {/* Leads List */}
+      <div className="space-y-3">
+        {filteredLeads.map((lead) => {
+          const isExpanded = expandedLeads.has(lead.id);
+          const statusTheme = getStatusTheme(lead.status);
+          const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
+          const isHighPriority = lead.priority === "high" || lead.priority === "urgent";
+
+          return (
+            <Card 
+              key={lead.id} 
+              className={`transition-all duration-200 border-l-4 ${
+                isHighPriority ? 'border-l-red-500' : 'border-l-gray-300'
+              } ${isExpanded ? 'shadow-md' : 'hover:shadow-sm'}`}
+            >
             {/* Collapsed Header */}
             <div 
               className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -153,12 +153,14 @@ export function ListView({ leads, onUpdateLeadStatus, isUpdating }: ListViewProp
                   </div>
                   
                   <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className={priorityTheme.color}>
-                      {priorityTheme.icon} {priorityTheme.label}
-                    </Badge>
                     <Badge variant="outline" className={serviceTheme.color}>
                       {serviceTheme.label}
                     </Badge>
+                    {isHighPriority && (
+                      <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+                        High Priority
+                      </Badge>
+                    )}
                   </div>
                   
                   <div>
@@ -173,20 +175,9 @@ export function ListView({ leads, onUpdateLeadStatus, isUpdating }: ListViewProp
             {/* Expanded Content */}
             {isExpanded && (
               <CardContent className="pt-0 pb-4 space-y-4">
-                {/* Status Navigation */}
-                <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">
-                    Lead Status Pipeline
-                  </label>
-                  <StatusNavigationBar
-                    currentStatus={lead.status}
-                    onStatusChange={(status) => onUpdateLeadStatus(lead.id, status)}
-                    leadId={lead.id}
-                  />
-                </div>
 
                 {/* Lead Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm font-medium text-gray-700">Service Details</label>
@@ -224,39 +215,12 @@ export function ListView({ leads, onUpdateLeadStatus, isUpdating }: ListViewProp
                     )}
                   </div>
                 </div>
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-4 border-t border-gray-100">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // TODO: Implement SMS functionality
-                    }}
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    Send SMS
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // TODO: Implement appointment booking
-                    }}
-                  >
-                    <Calendar className="w-4 h-4" />
-                    Book Appointment
-                  </Button>
-                </div>
               </CardContent>
             )}
           </Card>
         );
-      })}
+        })}
+      </div>
     </div>
   );
 }

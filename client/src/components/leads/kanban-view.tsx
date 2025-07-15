@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, MessageSquare, Calendar, AlertTriangle } from "lucide-react";
+import { Phone, Mail, MapPin } from "lucide-react";
 import type { Lead } from "@shared/schema";
-import { getStatusTheme, getPriorityTheme, getServiceTypeTheme, getWipLimit, statusOrder } from "@/lib/theme";
+import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +17,9 @@ interface KanbanViewProps {
 export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanViewProps) {
   const { toast } = useToast();
   
+  // Updated status order for the new columns
+  const statusOrder = ["new", "contacted", "qualified", "appointment_set", "closed_won"];
+  
   // Group leads by status
   const leadsByStatus = statusOrder.reduce((acc, status) => {
     acc[status] = leads.filter(lead => lead.status === status);
@@ -28,7 +29,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
   // Calculate average time in stage (mock calculation for now)
   const getAverageTimeInStage = (status: string): string => {
     const leadsInStatus = leadsByStatus[status] || [];
-    if (leadsInStatus.length === 0) return "N/A";
+    if (leadsInStatus.length === 0) return "0d avg";
     
     // Mock calculation - in real app, would calculate based on status change timestamps
     const avgDays = Math.floor(Math.random() * 7) + 1;
@@ -49,31 +50,25 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
     const leadId = parseInt(draggableId);
     const newStatus = destination.droppableId;
 
-    // Check WIP limits
-    const wipLimit = getWipLimit(newStatus);
-    const currentLeadsInColumn = leadsByStatus[newStatus]?.length || 0;
-    
-    if (wipLimit && currentLeadsInColumn >= wipLimit) {
-      toast({
-        title: "WIP Limit Exceeded",
-        description: `Cannot move lead. Maximum ${wipLimit} leads allowed in ${getStatusTheme(newStatus).label} column.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Update lead status
     onUpdateLeadStatus(leadId, newStatus);
     
-    // Show success toast
+    // Show success toast with new stage name
+    const statusLabels = {
+      new: "New",
+      contacted: "Contacted", 
+      qualified: "Qualified",
+      appointment_set: "Appointment Set",
+      closed_won: "Completed"
+    };
+    
     toast({
       title: "Lead Moved",
-      description: `Lead moved to ${getStatusTheme(newStatus).label}`,
+      description: `Moved to ${statusLabels[newStatus as keyof typeof statusLabels]}`,
     });
   };
 
   const LeadCard = ({ lead, index }: { lead: Lead; index: number }) => {
-    const priorityTheme = getPriorityTheme(lead.priority || "normal");
     const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
 
     return (
@@ -83,21 +78,16 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`mb-3 cursor-grab active:cursor-grabbing border-l-4 ${priorityTheme.cardAccent} ${
+            className={`mb-3 cursor-grab active:cursor-grabbing ${
               snapshot.isDragging ? "shadow-lg rotate-2 scale-105" : "hover:shadow-md"
             } transition-all duration-200`}
           >
             <CardContent className="p-3">
-              {/* Header with priority and service type */}
+              {/* Header with service type only */}
               <div className="flex items-start justify-between mb-2">
-                <div className="flex flex-wrap gap-1">
-                  <Badge variant="outline" className={`${priorityTheme.color} text-xs`}>
-                    {priorityTheme.icon} {priorityTheme.label}
-                  </Badge>
-                  <Badge variant="outline" className={`${serviceTheme.color} text-xs`}>
-                    {serviceTheme.label}
-                  </Badge>
-                </div>
+                <Badge variant="outline" className={`${serviceTheme.color} text-xs`}>
+                  {serviceTheme.label}
+                </Badge>
               </div>
 
               {/* Lead name and creation date */}
@@ -152,31 +142,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
                 </p>
               )}
 
-              {/* Quick actions */}
-              <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // TODO: Implement SMS functionality
-                  }}
-                >
-                  <MessageSquare className="w-3 h-3" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-6 px-2 text-xs"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // TODO: Implement appointment booking
-                  }}
-                >
-                  <Calendar className="w-3 h-3" />
-                </Button>
-              </div>
+
             </CardContent>
           </Card>
         )}
@@ -187,41 +153,31 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
   const KanbanColumn = ({ status }: { status: string }) => {
     const statusTheme = getStatusTheme(status);
     const columnLeads = leadsByStatus[status] || [];
-    const wipLimit = getWipLimit(status);
-    const isOverLimit = wipLimit && columnLeads.length > wipLimit;
-    const isAtLimit = wipLimit && columnLeads.length === wipLimit;
+    
+    // Custom labels for the new column structure
+    const columnLabels = {
+      new: "New",
+      contacted: "Contacted",
+      qualified: "Qualified", 
+      appointment_set: "Appointment Set",
+      closed_won: "Completed"
+    };
 
     return (
       <div className="flex-1 min-w-80">
         {/* Column Header */}
         <div className={`p-3 rounded-t-lg border-b-2 ${statusTheme.accent} bg-white`}>
           <div className="flex items-center justify-between mb-1">
-            <h3 className="font-semibold text-gray-900">{statusTheme.label}</h3>
-            <div className="flex items-center gap-2">
-              {(isAtLimit || isOverLimit) && (
-                <AlertTriangle 
-                  className={`w-4 h-4 ${isOverLimit ? "text-red-500" : "text-amber-500"}`} 
-                />
-              )}
-              <Badge 
-                variant="outline" 
-                className={`${statusTheme.color} text-xs ${
-                  isOverLimit ? "border-red-300 bg-red-50" : isAtLimit ? "border-amber-300 bg-amber-50" : ""
-                }`}
-              >
-                {columnLeads.length}
-                {wipLimit && ` / ${wipLimit}`}
-              </Badge>
-            </div>
+            <h3 className="font-semibold text-gray-900">
+              {columnLabels[status as keyof typeof columnLabels] || statusTheme.label}
+            </h3>
+            <Badge variant="outline" className={`${statusTheme.color} text-xs`}>
+              {columnLeads.length}
+            </Badge>
           </div>
           <p className="text-xs text-gray-500">
             {getAverageTimeInStage(status)}
           </p>
-          {wipLimit && isOverLimit && (
-            <p className="text-xs text-red-600 mt-1">
-              WIP limit exceeded!
-            </p>
-          )}
         </div>
 
         {/* Droppable Column */}

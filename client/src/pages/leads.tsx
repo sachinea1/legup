@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { Lead, InsertLead } from "@shared/schema";
 import { useLeads } from "@/hooks/use-leads";
@@ -7,36 +7,53 @@ import { Filters } from "@/components/leads/filters";
 import { ListView } from "@/components/leads/list-view";
 import { KanbanView } from "@/components/leads/kanban-view";
 import { NewLeadForm } from "@/components/leads/new-lead-form";
+import { FiltersModal } from "@/components/leads/filters-modal";
 import { OnboardingOverlay } from "@/components/onboarding-overlay";
 
 export default function Leads() {
   // View mode state
   const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   
-  // Filter states
+  // Shared filter states
   const [searchQuery, setSearchQuery] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [serviceFilter, setServiceFilter] = useState<string>("all");
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [highPriorityOnly, setHighPriorityOnly] = useState(false);
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [assignedCleaner, setAssignedCleaner] = useState<string>("all");
   
-  // Dialog state
+  // Dialog states
   const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
+  const [showFiltersModal, setShowFiltersModal] = useState(false);
 
-  // Use leads hook for data management
+  // Use leads hook for data management (memoized to prevent refetch on view toggle)
   const { leads, isLoading, updateLeadStatus, createLead, isUpdating, isCreating } = useLeads();
 
-  // Filter leads based on all criteria
-  const filteredLeads = Array.isArray(leads) ? leads.filter((lead: Lead) => {
-    const matchesSearch = lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      lead.phone.includes(searchQuery) ||
-      (lead.email && lead.email.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Memoized filtered leads to prevent unnecessary recalculations
+  const filteredLeads = useMemo(() => {
+    if (!Array.isArray(leads)) return [];
     
-    const matchesPriority = priorityFilter === "all" || lead.priority === priorityFilter;
-    const matchesService = serviceFilter === "all" || lead.serviceType === serviceFilter;
-    const matchesSource = sourceFilter === "all" || lead.source === sourceFilter;
-    
-    return matchesSearch && matchesPriority && matchesService && matchesSource;
-  }) : [];
+    return leads.filter((lead: Lead) => {
+      // Search filter
+      const matchesSearch = !searchQuery || 
+        lead.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        lead.phone.includes(searchQuery) ||
+        (lead.email && lead.email.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      // High priority filter
+      const matchesPriority = !highPriorityOnly || 
+        lead.priority === "high" || lead.priority === "urgent";
+      
+      // Date range filter
+      const matchesDate = !dateRange.from || !dateRange.to || 
+        (lead.createdAt && 
+         new Date(lead.createdAt) >= dateRange.from && 
+         new Date(lead.createdAt) <= dateRange.to);
+      
+      // Assigned cleaner filter (placeholder - would need cleaner field in schema)
+      const matchesCleaner = assignedCleaner === "all"; // Always true for now
+      
+      return matchesSearch && matchesPriority && matchesDate && matchesCleaner;
+    });
+  }, [leads, searchQuery, highPriorityOnly, dateRange, assignedCleaner]);
 
   // Handle creating new lead
   const handleCreateLead = (data: InsertLead) => {
@@ -64,22 +81,29 @@ export default function Leads() {
               Manage your sales pipeline with list and kanban views
             </p>
           </div>
-          <TopNav viewMode={viewMode} onViewModeChange={setViewMode} />
+          <TopNav 
+            viewMode={viewMode} 
+            onViewModeChange={setViewMode}
+            onOpenFilters={() => setShowFiltersModal(true)}
+            onAddLead={() => setShowNewLeadDialog(true)}
+          />
         </div>
 
-        {/* Filters */}
-        <Filters
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          priorityFilter={priorityFilter}
-          onPriorityChange={setPriorityFilter}
-          serviceFilter={serviceFilter}
-          onServiceChange={setServiceFilter}
-          sourceFilter={sourceFilter}
-          onSourceChange={setSourceFilter}
-          onAddLead={() => setShowNewLeadDialog(true)}
-          totalLeads={filteredLeads.length}
-        />
+        {/* List View Filters - Only show for List View */}
+        {viewMode === "list" && (
+          <Filters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            priorityFilter="all" // Not used anymore but keeping for compatibility
+            onPriorityChange={() => {}} // Not used anymore
+            serviceFilter="all" // Not used anymore
+            onServiceChange={() => {}} // Not used anymore
+            sourceFilter="all" // Not used anymore
+            onSourceChange={() => {}} // Not used anymore
+            onAddLead={() => setShowNewLeadDialog(true)}
+            totalLeads={filteredLeads.length}
+          />
+        )}
 
         {/* View Content */}
         <div className="min-h-96">
@@ -88,6 +112,8 @@ export default function Leads() {
               leads={filteredLeads}
               onUpdateLeadStatus={updateLeadStatus}
               isUpdating={isUpdating}
+              highPriorityOnly={highPriorityOnly}
+              onHighPriorityChange={setHighPriorityOnly}
             />
           ) : (
             <KanbanView
@@ -110,6 +136,18 @@ export default function Leads() {
             <NewLeadForm onSubmit={handleCreateLead} isLoading={isCreating} />
           </DialogContent>
         </Dialog>
+
+        {/* Filters Modal for Kanban View */}
+        <FiltersModal
+          open={showFiltersModal}
+          onOpenChange={setShowFiltersModal}
+          highPriorityOnly={highPriorityOnly}
+          onHighPriorityChange={setHighPriorityOnly}
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          assignedCleaner={assignedCleaner}
+          onAssignedCleanerChange={setAssignedCleaner}
+        />
       </div>
     </>
   );

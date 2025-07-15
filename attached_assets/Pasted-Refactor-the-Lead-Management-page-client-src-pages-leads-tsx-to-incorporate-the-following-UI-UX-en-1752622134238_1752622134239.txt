@@ -1,0 +1,37 @@
+Refactor the Lead Management page (client/src/pages/leads.tsx) to incorporate the following UI/UX enhancements:
+
+1. Top Navigation & View Toggle  
+   - Retain the existing top nav tab bar that switches between “List View” and “Kanban View” (use React state `viewMode`).  The selected tab doesnt have any text in it due to coloring issues. fix that so i can read what it says even when it is selected.
+   - For “List View,” display the full-width filter toolbar. For “Kanban View,” collapse filters into a single “Filters” button in the nav bar alongside an “Add Lead” button :contentReference[oaicite:0]{index=0}.  
+
+2. List View Enhancements  
+   - Replace the multi‑option filter dropdowns with a single **High Priority** toggle button that, when active, places leads tagged high‑priority at the top of the list (use a Boolean flag on each lead) :contentReference[oaicite:1]{index=1}.  
+   - Remove the “Lead Source” filter entirely.  
+   - Eliminate all “Actions” columns and buttons—no actions are needed in MVP.  
+   - Remove the “Lead Status Pipeline” header above individual lead entries—minimize vertical space :contentReference[oaicite:2]{index=2}.  
+   - Ensure the list retains the same data ordering logic (sorted by stage, then by priority toggle, then by creation date) :contentReference[oaicite:3]{index=3}.  
+
+3. Kanban View Enhancements  
+   - Remove the full filter toolbar; instead, include in the top nav bar a **Filters** icon to open a modal with the High Priority toggle, date range selector, and assigned cleaner filters :contentReference[oaicite:4]{index=4}.  
+   - Include an **Add Lead** button next to the Filters icon for quick lead creation.  
+   - Implement a clean Kanban board with columns: New, Contacted, Qualified, Appointment Set, Completed :contentReference[oaicite:5]{index=5}.  
+   - Use `react-beautiful-dnd` for drag‑and‑drop; ensure `onDragEnd` updates the lead’s `stage` via the shared `updateLead` callback :contentReference[oaicite:6]{index=6}.  
+   - Color‑code cards by service type label only; remove priority badges entirely (priority will be handled by sorting/filter) :contentReference[oaicite:7]{index=7}.  
+   - Column headers must show the count of cards and average time‑in‑stage metrics.  
+   - Provide a toast/snackbar confirmation on successful drop indicating “Moved to [New Stage]” :contentReference[oaicite:8]{index=8}.  
+
+4. Shared Data & Architecture  
+   - Use the existing `useLeads` hook/context to fetch `{ leads, updateLead }` once and feed both views, memoizing results to prevent refetch on view toggle :contentReference[oaicite:9]{index=9}.  
+   - Ensure filters applied in List View (High Priority toggle, date range, assigned cleaner) sync with Kanban modal filters and vice versa, without duplicating data fetching :contentReference[oaicite:10]{index=10}.  
+
+5. Styling & Accessibility  
+   - Utilize Tailwind CSS (or CSS modules) for consistent theming; define colors for each service type and a primary brand color for the active tab/trends :contentReference[oaicite:11]{index=11}.  
+   - Ensure drag handles and buttons have accessible labels and keyboard operability.  
+   - Design both views responsively: on mobile, List View becomes a stacked accordion; Kanban collapses to a single-column swipeable view :contentReference[oaicite:12]{index=12}.  
+   - Follow list‑UI hierarchy best practices: maintain clear typography, spacing, and hover states for cards in both views :contentReference[oaicite:13]{index=13}.  
+
+Deliverables:  
+- Updated `pages/leads.tsx` with viewMode logic and TopNav.  
+- Revised `ListView` component with High Priority toggle and cleaned layout.  
+- Enhanced `KanbanView` component with drag‑and‑drop, filtered modal, Add Lead button, and card count headers.  
+- Ensured shared data via `useLeads` context/hook.
