@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, MapPin, ChevronDown, ChevronRight } from "lucide-react";
+import { Phone, Mail, MapPin, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
@@ -14,6 +14,7 @@ interface ListViewProps {
   isUpdating: boolean;
   highPriorityOnly: boolean;
   onHighPriorityChange: (enabled: boolean) => void;
+  onDeleteLead: (id: number) => void;
 }
 
 export function ListView({ 
@@ -21,7 +22,8 @@ export function ListView({
   onUpdateLeadStatus, 
   isUpdating, 
   highPriorityOnly, 
-  onHighPriorityChange 
+  onHighPriorityChange,
+  onDeleteLead
 }: ListViewProps) {
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
 
@@ -56,10 +58,9 @@ export function ListView({
     return bDate.getTime() - aDate.getTime();
   });
 
-  // Filter leads if high priority only is enabled
-  const filteredLeads = highPriorityOnly 
-    ? sortedLeads.filter(lead => lead.priority === "high" || lead.priority === "urgent")
-    : sortedLeads;
+  // The high priority filtering is already done at the parent level
+  // Just use the sorted leads directly
+  const displayLeads = sortedLeads;
 
   // Status navigation bar with arrow design
   const statusStages = [
@@ -146,7 +147,7 @@ export function ListView({
 
       {/* Leads List */}
       <div className="space-y-3">
-        {filteredLeads.map((lead) => {
+        {displayLeads.map((lead) => {
           const isExpanded = expandedLeads.has(lead.id);
           const statusTheme = getStatusTheme(lead.status);
           const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
@@ -215,10 +216,22 @@ export function ListView({
                     )}
                   </div>
                   
-                  <div>
+                  <div className="flex items-center justify-between">
                     <Badge variant="outline" className={statusTheme.color}>
                       {statusTheme.label}
                     </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteLead(lead.id);
+                      }}
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                      aria-label="Delete lead"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
               </div>

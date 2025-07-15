@@ -124,12 +124,24 @@ export default function Leads() {
               isUpdating={isUpdating}
               highPriorityOnly={highPriorityOnly}
               onHighPriorityChange={setHighPriorityOnly}
+              onDeleteLead={(id) => {
+                if (confirm("Are you sure you want to delete this lead?")) {
+                  // TODO: Add delete lead mutation
+                  console.log("Delete lead:", id);
+                }
+              }}
             />
           ) : (
             <KanbanView
-              leads={filteredLeads}
+              leads={kanbanFilteredLeads}
               onUpdateLeadStatus={updateLeadStatus}
               isUpdating={isUpdating}
+              onDeleteLead={(id) => {
+                if (confirm("Are you sure you want to delete this lead?")) {
+                  // TODO: Add delete lead mutation
+                  console.log("Delete lead:", id);
+                }
+              }}
             />
           )}
         </div>

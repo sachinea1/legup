@@ -12,9 +12,10 @@ interface KanbanViewProps {
   leads: Lead[];
   onUpdateLeadStatus: (id: number, status: string) => void;
   isUpdating: boolean;
+  onDeleteLead: (id: number) => void;
 }
 
-export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanViewProps) {
+export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead }: KanbanViewProps) {
   const { toast } = useToast();
   
   // Updated status order for the new columns
@@ -50,6 +51,8 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
     // Extract lead ID from draggableId (format: "lead-{id}")
     const leadId = parseInt(draggableId.replace('lead-', ''));
     const newStatus = destination.droppableId;
+    
+    console.log('Drag end:', { leadId, newStatus, draggableId });
 
     // Update lead status
     onUpdateLeadStatus(leadId, newStatus);
@@ -145,11 +148,23 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
             aria-label={`Lead card for ${lead.name}`}
           >
             <CardContent className="p-3">
-              {/* Header with service type only */}
+              {/* Header with service type and delete button */}
               <div className="flex items-start justify-between mb-2">
                 <Badge variant="outline" className={`${serviceTheme.color} text-xs`}>
                   {serviceTheme.label}
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteLead(lead.id);
+                  }}
+                  className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                  aria-label="Delete lead"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </div>
 
               {/* Lead name and creation date */}
