@@ -47,7 +47,8 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
       return;
     }
 
-    const leadId = parseInt(draggableId);
+    // Extract lead ID from draggableId (format: "lead-{id}")
+    const leadId = parseInt(draggableId.replace('lead-', ''));
     const newStatus = destination.droppableId;
 
     // Update lead status
@@ -68,11 +69,69 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
     });
   };
 
+  // Stage Toggle Bar Component for Kanban cards
+  const StageToggleBar = ({ 
+    currentStatus, 
+    onStatusChange, 
+    leadId, 
+    isUpdating 
+  }: { 
+    currentStatus: string; 
+    onStatusChange: (status: string) => void;
+    leadId: number;
+    isUpdating: boolean;
+  }) => {
+    const stages = ["new", "contacted", "qualified", "appointment_set", "closed_won"];
+    const stageLabels = {
+      new: "New",
+      contacted: "Contacted", 
+      qualified: "Qualified",
+      appointment_set: "Apt Set",
+      closed_won: "Done"
+    };
+
+    return (
+      <div className="flex items-center gap-1">
+        {stages.map((stage) => {
+          const isActive = currentStatus === stage;
+          const isCompleted = stages.indexOf(currentStatus) > stages.indexOf(stage);
+          
+          return (
+            <Button
+              key={stage}
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(stage);
+              }}
+              disabled={isUpdating}
+              className={`h-6 px-2 text-xs font-medium transition-all ${
+                isActive 
+                  ? "bg-blue-600 text-white" 
+                  : isCompleted
+                  ? "bg-green-100 text-green-700 hover:bg-green-200"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              aria-label={`Set stage to ${stageLabels[stage as keyof typeof stageLabels]}`}
+            >
+              {stageLabels[stage as keyof typeof stageLabels]}
+            </Button>
+          );
+        })}
+      </div>
+    );
+  };
+
   const LeadCard = ({ lead, index }: { lead: Lead; index: number }) => {
     const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
 
     return (
-      <Draggable draggableId={lead.id.toString()} index={index} isDragDisabled={isUpdating}>
+      <Draggable 
+        draggableId={`lead-${lead.id}`} 
+        index={index} 
+        isDragDisabled={isUpdating}
+      >
         {(provided, snapshot) => (
           <Card
             ref={provided.innerRef}
@@ -81,6 +140,9 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
             className={`mb-3 cursor-grab active:cursor-grabbing ${
               snapshot.isDragging ? "shadow-lg rotate-2 scale-105" : "hover:shadow-md"
             } transition-all duration-200`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Lead card for ${lead.name}`}
           >
             <CardContent className="p-3">
               {/* Header with service type only */}
@@ -142,7 +204,15 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating }: KanbanView
                 </p>
               )}
 
-
+              {/* Stage Toggle Bar at bottom of card */}
+              <div className="mt-3 pt-2 border-t border-gray-100">
+                <StageToggleBar
+                  currentStatus={lead.status}
+                  onStatusChange={(status) => onUpdateLeadStatus(lead.id, status)}
+                  leadId={lead.id}
+                  isUpdating={isUpdating}
+                />
+              </div>
             </CardContent>
           </Card>
         )}

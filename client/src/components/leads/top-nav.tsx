@@ -11,6 +11,28 @@ interface TopNavProps {
 export function TopNav({ viewMode, onViewModeChange, onOpenFilters, onAddLead }: TopNavProps) {
   return (
     <div className="flex items-center gap-3">
+      {/* Add Lead and Filters buttons (left of tabs) */}
+      <Button
+        size="sm"
+        onClick={onAddLead}
+        className="flex items-center gap-2"
+      >
+        <Plus className="w-4 h-4" />
+        Add Lead
+      </Button>
+      
+      {viewMode === "kanban" && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onOpenFilters}
+          className="flex items-center gap-2"
+        >
+          <Filter className="w-4 h-4" />
+          Filters
+        </Button>
+      )}
+
       {/* View Toggle */}
       <div className="flex items-center gap-1 border border-gray-200 rounded-lg p-1 bg-gray-50">
         <Button
@@ -40,29 +62,6 @@ export function TopNav({ viewMode, onViewModeChange, onOpenFilters, onAddLead }:
           Kanban View
         </Button>
       </div>
-
-      {/* Kanban-specific buttons */}
-      {viewMode === "kanban" && (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onOpenFilters}
-            className="flex items-center gap-2"
-          >
-            <Filter className="w-4 h-4" />
-            Filters
-          </Button>
-          <Button
-            size="sm"
-            onClick={onAddLead}
-            className="flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add Lead
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

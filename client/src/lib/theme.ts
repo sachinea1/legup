@@ -121,3 +121,19 @@ export const getWipLimit = (status: string) => {
 
 // Status order for Kanban columns
 export const statusOrder = ["new", "contacted", "qualified", "appointment_set", "closed_won", "closed_lost"];
+
+// High priority colors for the toggle button
+export const getHighPriorityTheme = (isActive: boolean) => ({
+  button: isActive 
+    ? "bg-red-600 hover:bg-red-700 text-white border-red-600" 
+    : "text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400",
+  text: isActive ? "text-red-600" : "text-gray-600"
+});
+
+// Service type color themes for cards
+export const serviceTypeColors = {
+  regular: "border-blue-300 bg-blue-50 text-blue-700",
+  deep: "border-purple-300 bg-purple-50 text-purple-700", 
+  moveout: "border-orange-300 bg-orange-50 text-orange-700",
+  commercial: "border-green-300 bg-green-50 text-green-700"
+} as const;

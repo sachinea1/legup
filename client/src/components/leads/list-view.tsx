@@ -2,8 +2,6 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Phone, Mail, MapPin, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import type { Lead } from "@shared/schema";
@@ -39,14 +37,13 @@ export function ListView({
     });
   };
 
-  // Sort leads: high priority first if toggle is on, then by status, then by creation date
+  // Always sort with high priority leads at top, regardless of toggle state
   const sortedLeads = [...leads].sort((a, b) => {
-    if (highPriorityOnly) {
-      const aIsHigh = a.priority === "high" || a.priority === "urgent";
-      const bIsHigh = b.priority === "high" || b.priority === "urgent";
-      if (aIsHigh && !bIsHigh) return -1;
-      if (!aIsHigh && bIsHigh) return 1;
-    }
+    // High priority always at top
+    const aIsHigh = a.priority === "high" || a.priority === "urgent";
+    const bIsHigh = b.priority === "high" || b.priority === "urgent";
+    if (aIsHigh && !bIsHigh) return -1;
+    if (!aIsHigh && bIsHigh) return 1;
     
     // Sort by status order
     const statusOrder = ["new", "contacted", "qualified", "appointment_set", "closed_won", "closed_lost"];
@@ -64,6 +61,58 @@ export function ListView({
     ? sortedLeads.filter(lead => lead.priority === "high" || lead.priority === "urgent")
     : sortedLeads;
 
+  // Status navigation bar with arrow design
+  const statusStages = [
+    { value: "new", label: "New" },
+    { value: "contacted", label: "Contacted" },
+    { value: "qualified", label: "Qualified" },
+    { value: "appointment_set", label: "Appointment Set" },
+    { value: "closed_won", label: "Completed" },
+  ];
+
+  const StatusNavigationBar = ({ currentStatus, onStatusChange, leadId }: { 
+    currentStatus: string; 
+    onStatusChange: (status: string) => void;
+    leadId: number;
+  }) => (
+    <div className="flex items-center bg-gray-50 rounded-lg p-1 gap-0">
+      {statusStages.map((stage, index) => {
+        const isActive = currentStatus === stage.value;
+        const isCompleted = statusStages.findIndex(s => s.value === currentStatus) > index;
+        
+        return (
+          <div key={stage.value} className="flex items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onStatusChange(stage.value)}
+              disabled={isUpdating}
+              className={`
+                relative h-8 px-3 text-xs font-medium transition-all
+                ${isActive 
+                  ? "bg-blue-600 text-white shadow-sm" 
+                  : isCompleted
+                  ? "bg-green-100 text-green-700 hover:bg-green-200"
+                  : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+                }
+                ${index === 0 ? "rounded-l-md" : ""}
+                ${index === statusStages.length - 1 ? "rounded-r-md" : ""}
+                ${index > 0 ? "-ml-1" : ""}
+              `}
+              style={{
+                clipPath: index === statusStages.length - 1 
+                  ? "none" 
+                  : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)"
+              }}
+            >
+              {stage.label}
+            </Button>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   if (filteredLeads.length === 0) {
     return (
       <div className="text-center py-12">
@@ -75,21 +124,24 @@ export function ListView({
 
   return (
     <div className="space-y-4">
-      {/* High Priority Toggle */}
-      <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-        <div>
-          <Label htmlFor="high-priority-toggle" className="text-sm font-medium">
-            Show High Priority Only
-          </Label>
-          <p className="text-xs text-gray-500 mt-1">
-            Display only urgent and high priority leads at the top
-          </p>
-        </div>
-        <Switch
-          id="high-priority-toggle"
-          checked={highPriorityOnly}
-          onCheckedChange={onHighPriorityChange}
-        />
+      {/* High Priority Toggle Button */}
+      <div className="flex items-center gap-2">
+        <Button
+          variant={highPriorityOnly ? "default" : "outline"}
+          size="sm"
+          onClick={() => onHighPriorityChange(!highPriorityOnly)}
+          className={`${
+            highPriorityOnly 
+              ? "bg-red-600 hover:bg-red-700 text-white border-red-600" 
+              : "text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
+          }`}
+          aria-label="Toggle high priority filter"
+        >
+          High Priority
+        </Button>
+        <span className="text-sm text-gray-500">
+          {highPriorityOnly ? "Showing high priority only" : "Showing all leads"}
+        </span>
       </div>
 
       {/* Leads List */}
@@ -175,9 +227,17 @@ export function ListView({
             {/* Expanded Content */}
             {isExpanded && (
               <CardContent className="pt-0 pb-4 space-y-4">
+                {/* Status Navigation */}
+                <div>
+                  <StatusNavigationBar
+                    currentStatus={lead.status}
+                    onStatusChange={(status) => onUpdateLeadStatus(lead.id, status)}
+                    leadId={lead.id}
+                  />
+                </div>
 
                 {/* Lead Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                   <div className="space-y-3">
                     <div>
                       <label className="text-sm font-medium text-gray-700">Service Details</label>

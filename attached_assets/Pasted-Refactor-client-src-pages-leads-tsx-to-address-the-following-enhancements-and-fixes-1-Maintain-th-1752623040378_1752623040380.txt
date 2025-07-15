@@ -1,0 +1,32 @@
+Refactor client/src/pages/leads.tsx to address the following enhancements and fixes:
+
+1. Maintain the TopNav tabs (“List View” / “Kanban View”) and add two new buttons to their left: an “Add Lead” button and a “Filters” button for Kanban View only :contentReference[oaicite:0]{index=0}.  
+
+2. In List View:
+   - Reintroduce the **stage‑toggle bar** within each lead card (New, Contacted, Qualified, Appointment Set, Completed) but remove only its header label to save space :contentReference[oaicite:1]{index=1}.
+   - Replace the multi‑filter dropdowns with a single **High Priority** toggle button that persists its state, stays visible, and turns red when active (high) and gray when normal :contentReference[oaicite:2]{index=2}.
+   - Always keep high‑priority leads sorted to the top, even after toggling off; maintain stable sort by stage and creation date :contentReference[oaicite:3]{index=3}.
+   - Remove the Lead Source filter and all action buttons/columns from the list layout :contentReference[oaicite:4]{index=4}.
+
+3. In Kanban View:
+   - Do not alter the TopNav tab toggle placement; keep “List View” / “Kanban View” in the same spots, with the new “Filters” and “Add Lead” buttons immediately to their left :contentReference[oaicite:5]{index=5}.
+   - Remove the full filter toolbar under the nav; instead, clicking “Filters” opens a modal containing only: High Priority toggle, date range picker, and assigned cleaner dropdown :contentReference[oaicite:6]{index=6}.
+   - Ensure Kanban columns are labeled: New, Contacted, Qualified, Appointment Set, Completed, with card counts and average time-in-stage metrics in each header :contentReference[oaicite:7]{index=7}.
+   - Color‑code cards by service type only; no priority badges. Each card shows the stage‑toggle bar at its bottom for quick stage changes :contentReference[oaicite:8]{index=8}.
+   - Fix drag‑and‑drop (the current drag and drop for leads doesnt work) using `react-beautiful-dnd` so that onDragEnd reliably calls `updateLead(id, newStage)` and triggers a toast/snackbar confirmation (“Moved to [Stage]”) :contentReference[oaicite:9]{index=9}.
+
+4. Data & State Management:
+   - Use the existing `useLeads` context/hook to fetch `leads` and `updateLead` once; share filters state between List and Kanban without refetching :contentReference[oaicite:10]{index=10}.
+   - Memoize filtered leads in a derived state so toggling views does not rerun heavy filter logic :contentReference[oaicite:11]{index=11}.
+
+5. Styling & Responsiveness:
+   - Continue using Tailwind CSS (or CSS modules) for theming; define colors for service types and high‑priority toggle in a shared theme file :contentReference[oaicite:12]{index=12}.
+   - Ensure both views are responsive: List View collapses into an accordion on mobile; Kanban becomes a single swipeable column :contentReference[oaicite:13]{index=13}.
+   - Add accessible ARIA labels for filter buttons, toggle switches, and drag handles to support keyboard navigation and screen readers :contentReference[oaicite:14]{index=14}.
+
+Deliverables:
+- Updated `leads.tsx` wiring TopNav, viewMode state, and new buttons
+- Revised `ListView` component with stage‑toggle and persistent priority toggle
+- Enhanced `KanbanView` with modal filters, fixed drag‑and‑drop, and per‑card stage toggles
+- Shared `useLeads` hook/context ensuring memoized data and filter sync
+- Theme file updates for color definitions and accessible styling
