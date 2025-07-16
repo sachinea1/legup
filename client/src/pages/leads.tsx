@@ -133,7 +133,7 @@ export default function Leads() {
             />
           ) : (
             <KanbanView
-              leads={kanbanFilteredLeads}
+              leads={filteredLeads}
               onUpdateLeadStatus={updateLeadStatus}
               isUpdating={isUpdating}
               onDeleteLead={(id) => {
