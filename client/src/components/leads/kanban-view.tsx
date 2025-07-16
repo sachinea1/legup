@@ -2,7 +2,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautif
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, Trash2 } from "lucide-react";
+import { Phone, Mail, MapPin, Trash2, Edit } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
@@ -17,9 +17,10 @@ interface KanbanViewProps {
   onUpdateLeadStatus: (id: number, status: string) => void;
   isUpdating: boolean;
   onDeleteLead: (id: number) => void;
+  onEditLead?: (lead: Lead) => void;
 }
 
-export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead }: KanbanViewProps) {
+export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead, onEditLead }: KanbanViewProps) {
   const { toast } = useToast();
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -155,23 +156,39 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
             aria-label={`Lead card for ${lead.name}`}
           >
             <CardContent className="p-3">
-              {/* Header with service type and delete button */}
+              {/* Header with service type and action buttons */}
               <div className="flex items-start justify-between mb-2">
                 <Badge variant="outline" className={`${serviceTheme.color} text-xs`}>
                   {serviceTheme.label}
                 </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setDeleteDialog({open: true, lead});
-                  }}
-                  className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                  aria-label="Delete lead"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {onEditLead && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditLead(lead);
+                      }}
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                      aria-label="Edit lead"
+                    >
+                      <Edit className="w-3 h-3" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteDialog({open: true, lead});
+                    }}
+                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                    aria-label="Delete lead"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                </div>
               </div>
 
               {/* Lead name and creation date */}

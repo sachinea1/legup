@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, MapPin, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { Phone, Mail, MapPin, ChevronDown, ChevronRight, Trash2, Edit } from "lucide-react";
 import { format } from "date-fns";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
@@ -16,6 +16,7 @@ interface ListViewProps {
   highPriorityOnly: boolean;
   onHighPriorityChange: (enabled: boolean) => void;
   onDeleteLead: (id: number) => void;
+  onEditLead?: (lead: Lead) => void;
 }
 
 export function ListView({ 
@@ -24,7 +25,8 @@ export function ListView({
   isUpdating, 
   highPriorityOnly, 
   onHighPriorityChange,
-  onDeleteLead
+  onDeleteLead,
+  onEditLead
 }: ListViewProps) {
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
   const [stageFilter, setStageFilter] = useState<string | null>(null);
@@ -108,11 +110,7 @@ export function ListView({
                 ${index > 0 ? "-ml-1" : ""}
               `}
               style={{
-                clipPath: index === 0
-                  ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)"
-                  : index === statusStages.length - 1 
-                  ? "polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%)" 
-                  : "polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%)"
+                clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)"
               }}
             >
               {stage.label}
@@ -146,7 +144,7 @@ export function ListView({
             }
           `}
           style={{
-            clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%)"
+            clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%)"
           }}
         >
           All Stages
@@ -166,9 +164,7 @@ export function ListView({
               -ml-1
             `}
             style={{
-              clipPath: index === statusStages.length - 1 
-                ? "polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%)" 
-                : "polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%)"
+              clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%)"
             }}
           >
             {stage.label}
@@ -277,18 +273,34 @@ export function ListView({
                     <Badge variant="outline" className={statusTheme.color}>
                       {statusTheme.label}
                     </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteDialog({open: true, lead});
-                      }}
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                      aria-label="Delete lead"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {onEditLead && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onEditLead(lead);
+                          }}
+                          className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                          aria-label="Edit lead"
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeleteDialog({open: true, lead});
+                        }}
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                        aria-label="Delete lead"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

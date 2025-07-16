@@ -60,7 +60,7 @@ export const leads = pgTable("leads", {
   priority: text("priority").default("normal"), // low, normal, high
   notes: text("notes"),
   estimatedCost: integer("estimated_cost"),
-  source: text("source").default("widget"), // widget, sms, call, referral
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

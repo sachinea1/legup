@@ -67,11 +67,7 @@ export function LeadDetailModal({
                 ${index > 0 ? "-ml-1" : ""}
               `}
               style={{
-                clipPath: index === 0
-                  ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)"
-                  : index === statusStages.length - 1 
-                  ? "polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%)" 
-                  : "polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%)"
+                clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)"
               }}
             >
               {stage.label}
@@ -187,10 +183,7 @@ export function LeadDetailModal({
                 </div>
               </div>
               
-              <div>
-                <label className="text-sm font-medium text-gray-700">Lead Source</label>
-                <p className="text-sm text-gray-600 mt-1 capitalize">{lead.source || "Unknown"}</p>
-              </div>
+
               
               {lead.estimatedValue && (
                 <div>
