@@ -62,13 +62,13 @@ export default function Schedule() {
   // Fetch appointments
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: ["/api/appointments"],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   // Fetch leads for quick scheduling
   const { data: leads = [] } = useQuery({
     queryKey: ["/api/leads"],
-    queryFn: getQueryFn(),
+    queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
   // Calculate week range

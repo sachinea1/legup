@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +12,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CalendarIcon, Clock, MapPin, User, Phone, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import type { Lead } from "@shared/schema";
+import type { Lead, Appointment } from "@shared/schema";
 import { getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { apiRequest, getQueryFn } from "@/lib/queryClient";
 
 interface ScheduleJobModalProps {
   open: boolean;
@@ -55,6 +55,28 @@ export function ScheduleJobModal({
   const [assignedStaff, setAssignedStaff] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [duration, setDuration] = useState("120"); // Default 2 hours
+
+  // Fetch existing appointments for this lead
+  const { data: appointments = [] } = useQuery<Appointment[]>({
+    queryKey: ["/api/appointments"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+    enabled: !!lead,
+  });
+
+  // Check if this lead has existing appointments and pre-populate form
+  useEffect(() => {
+    if (lead && appointments.length > 0) {
+      const existingAppointment = appointments.find(apt => apt.leadId === lead.id);
+      if (existingAppointment) {
+        const appointmentDate = new Date(existingAppointment.scheduledDate);
+        setSelectedDate(appointmentDate);
+        setSelectedTime(convertTo12Hour(format(appointmentDate, 'HH:mm')));
+        setAssignedStaff(existingAppointment.assignedCleaner || "");
+        setNotes(existingAppointment.notes || "");
+        setDuration(existingAppointment.duration?.toString() || "120");
+      }
+    }
+  }, [lead, appointments]);
 
   const scheduleJobMutation = useMutation({
     mutationFn: async (appointmentData: any) => {
@@ -121,6 +143,14 @@ export function ScheduleJobModal({
       hours = parseInt(hours, 10) + 12;
     }
     return `${hours}:${minutes}`;
+  };
+
+  // Helper function to convert 24-hour time to 12-hour
+  const convertTo12Hour = (time24: string) => {
+    const [hours, minutes] = time24.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
 
   if (!lead) return null;

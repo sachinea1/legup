@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, MapPin, ChevronDown, ChevronRight, Trash2, Edit, CalendarPlus } from "lucide-react";
+import { Phone, Mail, MapPin, ChevronDown, ChevronRight, Trash2, Edit, CalendarPlus, Clock, Calendar } from "lucide-react";
 import { format } from "date-fns";
-import type { Lead } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { getQueryFn } from "@/lib/queryClient";
+import type { Lead, Appointment } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
@@ -33,6 +35,12 @@ export function ListView({
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
   const [stageFilter, setStageFilter] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
+
+  // Fetch appointments to show scheduled appointments for each lead
+  const { data: appointments = [] } = useQuery<Appointment[]>({
+    queryKey: ["/api/appointments"],
+    queryFn: getQueryFn({ on401: "returnNull" }),
+  });
 
   const toggleLeadExpansion = (leadId: number) => {
     setExpandedLeads(prev => {
@@ -358,6 +366,45 @@ export function ListView({
                         <p className="text-sm text-gray-600 mt-1">{lead.notes}</p>
                       </div>
                     )}
+
+                    {/* Scheduled Appointments */}
+                    {(() => {
+                      const leadAppointments = appointments.filter(apt => apt.leadId === lead.id);
+                      if (leadAppointments.length === 0) return null;
+                      
+                      return (
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                          <h4 className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            Scheduled Appointments ({leadAppointments.length})
+                          </h4>
+                          <div className="space-y-2">
+                            {leadAppointments.map(appointment => (
+                              <div key={appointment.id} className="bg-white p-2 rounded border border-blue-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-gray-500" />
+                                    <span className="text-sm font-medium">
+                                      {format(new Date(appointment.scheduledDate), "MMM d, yyyy 'at' h:mm a")}
+                                    </span>
+                                  </div>
+                                  <Badge variant="outline" className={
+                                    appointment.status === 'confirmed' ? 'bg-green-100 text-green-800 border-green-300' :
+                                    appointment.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                                    'bg-gray-100 text-gray-800 border-gray-300'
+                                  }>
+                                    {appointment.status}
+                                  </Badge>
+                                </div>
+                                <div className="text-xs text-gray-600 mt-1">
+                                  Service: {appointment.serviceType.replace('_', ' ')} • Duration: {appointment.duration}min
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   
                   <div className="space-y-3">
