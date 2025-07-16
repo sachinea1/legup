@@ -1,12 +1,15 @@
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, MapPin } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Phone, Mail, MapPin, Trash2 } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
+import { useState } from "react";
 
 interface KanbanViewProps {
   leads: Lead[];
@@ -17,6 +20,7 @@ interface KanbanViewProps {
 
 export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead }: KanbanViewProps) {
   const { toast } = useToast();
+  const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
   
   // Updated status order for the new columns
   const statusOrder = ["new", "contacted", "qualified", "appointment_set", "closed_won"];
@@ -158,7 +162,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeleteLead(lead.id);
+                    setDeleteDialog({open: true, lead});
                   }}
                   className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
                   aria-label="Delete lead"
@@ -333,6 +337,20 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
           </div>
         </div>
       </DragDropContext>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({open})}
+        onConfirm={() => {
+          if (deleteDialog.lead) {
+            onDeleteLead(deleteDialog.lead.id);
+            setDeleteDialog({open: false});
+          }
+        }}
+        leadName={deleteDialog.lead?.name}
+        isDeleting={false}
+      />
     </div>
   );
 }

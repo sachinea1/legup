@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
+import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
 
 interface ListViewProps {
   leads: Lead[];
@@ -26,6 +27,8 @@ export function ListView({
   onDeleteLead
 }: ListViewProps) {
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
+  const [stageFilter, setStageFilter] = useState<string | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
 
   const toggleLeadExpansion = (leadId: number) => {
     setExpandedLeads(prev => {
@@ -58,9 +61,15 @@ export function ListView({
     return bDate.getTime() - aDate.getTime();
   });
 
-  // The high priority filtering is already done at the parent level
-  // Just use the sorted leads directly
-  const displayLeads = sortedLeads;
+  // Filter by stage if selected
+  const stageFilteredLeads = stageFilter
+    ? sortedLeads.filter(lead => lead.status === stageFilter)
+    : sortedLeads;
+  
+  // Filter leads based on toggle state
+  const displayLeads = highPriorityOnly 
+    ? stageFilteredLeads.filter(lead => lead.priority === "high" || lead.priority === "urgent")
+    : stageFilteredLeads;
 
   // Status navigation bar with arrow design
   const statusStages = [
@@ -123,8 +132,46 @@ export function ListView({
     );
   }
 
+  const handleDeleteConfirm = () => {
+    if (deleteDialog.lead) {
+      onDeleteLead(deleteDialog.lead.id);
+      setDeleteDialog({open: false});
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {/* Stage Filter Bar */}
+      <div className="flex items-center bg-gray-50 rounded-lg p-1 gap-0 mb-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setStageFilter(null)}
+          className={`relative h-8 px-3 text-xs font-medium transition-all ${
+            !stageFilter 
+              ? "bg-blue-600 text-white shadow-sm" 
+              : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+          } rounded-l-md`}
+        >
+          All Stages
+        </Button>
+        {statusStages.map((stage, index) => (
+          <Button
+            key={stage.value}
+            variant="ghost"
+            size="sm"
+            onClick={() => setStageFilter(stage.value)}
+            className={`relative h-8 px-3 text-xs font-medium transition-all ${
+              stageFilter === stage.value
+                ? "bg-blue-600 text-white shadow-sm" 
+                : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
+            } ${index === statusStages.length - 1 ? "rounded-r-md" : ""} -ml-1`}
+          >
+            {stage.label}
+          </Button>
+        ))}
+      </div>
+
       {/* High Priority Toggle Button */}
       <div className="flex items-center gap-2">
         <Button
@@ -225,7 +272,7 @@ export function ListView({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onDeleteLead(lead.id);
+                        setDeleteDialog({open: true, lead});
                       }}
                       className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
                       aria-label="Delete lead"
@@ -294,6 +341,15 @@ export function ListView({
         );
         })}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmationDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog({open})}
+        onConfirm={handleDeleteConfirm}
+        leadName={deleteDialog.lead?.name}
+        isDeleting={false}
+      />
     </div>
   );
 }
