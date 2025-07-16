@@ -2,346 +2,445 @@ import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, Clock, MapPin, Plus, Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
-import { format, addDays, startOfWeek, endOfWeek, isSameDay, addWeeks, subWeeks } from "date-fns";
+import { 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  User, 
+  Plus, 
+  Search,
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  Grid3x3,
+  List,
+  Phone,
+  GripVertical
+} from "lucide-react";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay, parseISO, isToday } from "date-fns";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
-import type { Lead, Appointment } from "@shared/schema";
+import type { Appointment, Lead } from "@shared/schema";
+import { displayPhoneNumber } from "@/lib/phone";
+import { getServiceTypeTheme } from "@/lib/theme";
+import { ScheduleJobModal } from "@/components/scheduling/schedule-job-modal";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock team data for now - will be replaced with actual API
-const mockTeamMembers = [
+// Mock staff data - replace with actual API data
+const mockStaff = [
   { id: 1, name: "Sarah Johnson", role: "Team Lead", avatar: "SJ", color: "bg-blue-500" },
   { id: 2, name: "Mike Chen", role: "Cleaner", avatar: "MC", color: "bg-green-500" },
   { id: 3, name: "Lisa Rodriguez", role: "Cleaner", avatar: "LR", color: "bg-purple-500" },
   { id: 4, name: "David Kim", role: "Cleaner", avatar: "DK", color: "bg-orange-500" },
 ];
 
-const serviceTypeColors = {
-  standard: "bg-blue-100 border-blue-300 text-blue-800",
-  deep: "bg-green-100 border-green-300 text-green-800",
-  move_in: "bg-purple-100 border-purple-300 text-purple-800",
-  move_out: "bg-orange-100 border-orange-300 text-orange-800",
-  office: "bg-indigo-100 border-indigo-300 text-indigo-800",
-  post_construction: "bg-red-100 border-red-300 text-red-800",
-};
+const timeSlots = [
+  "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM",
+  "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM",
+  "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
+  "5:00 PM", "5:30 PM", "6:00 PM"
+];
 
-const timeSlots = Array.from({ length: 10 }, (_, i) => ({
-  hour: i + 8,
-  label: `${i + 8}:00 ${i + 8 < 12 ? 'AM' : 'PM'}`,
-  time: `${i + 8}:00`,
-}));
+type ViewMode = "week" | "day";
 
-export default function SchedulePage() {
+export default function Schedule() {
   const { toast } = useToast();
-  const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [viewMode, setViewMode] = useState<'week' | 'day'>('week');
-  const [selectedDay, setSelectedDay] = useState(new Date());
-  const [selectedStaff, setSelectedStaff] = useState<number | null>(null);
+  const queryClient = useQueryClient();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [selectedStaff, setSelectedStaff] = useState<string>("all");
+  const [selectedServiceType, setSelectedServiceType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [serviceFilter, setServiceFilter] = useState<string>("");
+  const [showNewJobModal, setShowNewJobModal] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
 
-  // Fetch appointments and leads
-  const { data: appointments = [], refetch: refetchAppointments } = useQuery<Appointment[]>({
+  // Fetch appointments
+  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
     queryKey: ["/api/appointments"],
+    queryFn: getQueryFn(),
   });
 
-  const { data: leads = [] } = useQuery<Lead[]>({
+  // Fetch leads for quick scheduling
+  const { data: leads = [] } = useQuery({
     queryKey: ["/api/leads"],
+    queryFn: getQueryFn(),
   });
 
-  // Generate week days
-  const weekDays = useMemo(() => {
-    const start = startOfWeek(currentWeek, { weekStartsOn: 1 });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [currentWeek]);
+  // Calculate week range
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Monday
+  const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  // Filter appointments based on current filters
+  // Filter appointments
   const filteredAppointments = useMemo(() => {
-    return appointments.filter(apt => {
-      if (selectedStaff && apt.assignedCleaner !== selectedStaff.toString()) return false;
-      if (serviceFilter && apt.serviceType !== serviceFilter) return false;
-      if (searchQuery) {
-        const lead = leads.find(l => l.id === apt.leadId);
-        if (!lead) return false;
-        const searchLower = searchQuery.toLowerCase();
-        return (
-          lead.name.toLowerCase().includes(searchLower) ||
-          lead.address?.toLowerCase().includes(searchLower) ||
-          lead.phone.includes(searchQuery)
-        );
-      }
-      return true;
+    return appointments.filter((appointment: Appointment) => {
+      const matchesStaff = selectedStaff === "all" || appointment.assignedCleaner === selectedStaff;
+      const matchesServiceType = selectedServiceType === "all" || appointment.serviceType === selectedServiceType;
+      const matchesSearch = searchQuery === "" || 
+        appointment.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        appointment.address.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      return matchesStaff && matchesServiceType && matchesSearch;
     });
-  }, [appointments, selectedStaff, serviceFilter, searchQuery, leads]);
+  }, [appointments, selectedStaff, selectedServiceType, searchQuery]);
 
-  // Group appointments by day and time
-  const appointmentsByDay = useMemo(() => {
-    const grouped: Record<string, Record<string, Appointment[]>> = {};
-    
-    filteredAppointments.forEach(apt => {
-      const day = format(new Date(apt.scheduledAt), 'yyyy-MM-dd');
-      const hour = format(new Date(apt.scheduledAt), 'H');
-      
-      if (!grouped[day]) grouped[day] = {};
-      if (!grouped[day][hour]) grouped[day][hour] = [];
-      
-      grouped[day][hour].push(apt);
+  // Get appointments for a specific day
+  const getAppointmentsForDay = (date: Date) => {
+    return filteredAppointments.filter((appointment: Appointment) => {
+      const appointmentDate = new Date(appointment.scheduledDate);
+      return isSameDay(appointmentDate, date);
     });
-    
-    return grouped;
-  }, [filteredAppointments]);
+  };
+
+  // Get appointment time
+  const getAppointmentTime = (appointment: Appointment) => {
+    const date = new Date(appointment.scheduledDate);
+    return format(date, "h:mm a");
+  };
+
+  // Get service type theme
+  const getAppointmentTheme = (serviceType: string) => {
+    const theme = getServiceTypeTheme(serviceType);
+    return theme.color;
+  };
+
+  // Navigation functions
+  const goToPreviousWeek = () => setCurrentDate(subWeeks(currentDate, 1));
+  const goToNextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
+  const goToToday = () => setCurrentDate(new Date());
+
+  // Drag and drop mutation
+  const rescheduleAppointmentMutation = useMutation({
+    mutationFn: async ({ appointmentId, newDate, newStaff }: { appointmentId: number, newDate: Date, newStaff?: string }) => {
+      const response = await apiRequest("PATCH", `/api/appointments/${appointmentId}`, {
+        scheduledDate: newDate,
+        assignedCleaner: newStaff
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      toast({
+        title: "Appointment Updated",
+        description: "The appointment has been successfully rescheduled.",
+      });
+    },
+    onError: (error) => {
+      console.error("Error rescheduling appointment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to reschedule appointment. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Handle drag and drop
   const handleDragEnd = useCallback((result: DropResult) => {
-    const { destination, source, draggableId } = result;
+    if (!result.destination) return;
     
-    if (!destination) return;
-    
-    const appointmentId = parseInt(draggableId.replace('appointment-', ''));
-    const [, newDay, newHour] = destination.droppableId.split('-');
-    const newDateTime = new Date(`${newDay}T${newHour.padStart(2, '0')}:00`);
-    
-    // Update appointment time
-    toast({
-      title: "Job rescheduled",
-      description: `Moved to ${format(newDateTime, 'MMM d, h:mm a')}`,
-    });
-    
-    // TODO: Call API to update appointment
-    refetchAppointments();
-  }, [toast, refetchAppointments]);
+    const appointmentId = parseInt(result.draggableId);
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    if (!appointment) return;
 
-  // Staff selector component
-  const StaffSelector = () => (
-    <div className="mb-4 p-4 bg-white rounded-lg border border-gray-200">
-      <div className="flex items-center gap-3 overflow-x-auto">
-        <Button
-          variant={selectedStaff === null ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSelectedStaff(null)}
-          className="flex-shrink-0"
-        >
-          All Staff
-        </Button>
-        {mockTeamMembers.map(member => (
-          <Button
-            key={member.id}
-            variant={selectedStaff === member.id ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedStaff(member.id)}
-            className="flex-shrink-0 flex items-center gap-2"
-          >
-            <Avatar className="w-6 h-6">
-              <AvatarFallback className={`${member.color} text-white text-xs`}>
-                {member.avatar}
-              </AvatarFallback>
-            </Avatar>
-            {member.name}
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
-
-  // Job block component
-  const JobBlock = ({ appointment, lead }: { appointment: Appointment; lead?: Lead }) => {
-    const serviceType = appointment.serviceType || 'standard';
-    const colorClass = serviceTypeColors[serviceType as keyof typeof serviceTypeColors] || serviceTypeColors.standard;
+    // Parse destination - format: "day-YYYY-MM-DD" or "staff-ID"
+    const [destType, destValue] = result.destination.droppableId.split('-');
     
+    if (destType === 'day') {
+      // Moving to a different day
+      const newDate = new Date(destValue);
+      const currentTime = new Date(appointment.scheduledDate);
+      newDate.setHours(currentTime.getHours(), currentTime.getMinutes());
+      
+      rescheduleAppointmentMutation.mutate({
+        appointmentId,
+        newDate
+      });
+    } else if (destType === 'staff') {
+      // Reassigning to different staff
+      rescheduleAppointmentMutation.mutate({
+        appointmentId,
+        newDate: new Date(appointment.scheduledDate),
+        newStaff: destValue
+      });
+    }
+  }, [appointments, rescheduleAppointmentMutation]);
+
+  if (appointmentsLoading) {
     return (
-      <div className={`p-2 rounded border-l-4 text-xs ${colorClass} hover:shadow-md transition-shadow`}>
-        <div className="font-medium truncate">{lead?.name || 'Unknown Client'}</div>
-        <div className="text-xs opacity-75 flex items-center gap-1 mt-1">
-          <Clock className="w-3 h-3" />
-          {format(new Date(appointment.scheduledAt), 'h:mm a')}
-        </div>
-        {lead?.address && (
-          <div className="text-xs opacity-75 flex items-center gap-1 mt-1">
-            <MapPin className="w-3 h-3" />
-            <span className="truncate">{lead.address}</span>
-          </div>
-        )}
+      <div className="p-6">
+        <div className="text-center">Loading schedule...</div>
       </div>
     );
-  };
+  }
 
-  // Week view component
-  const WeekView = () => (
+  return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-8 gap-px bg-gray-200 rounded-lg overflow-hidden">
-        {/* Time column header */}
-        <div className="bg-gray-50 p-3 text-xs font-medium text-gray-500">
-          Time
+      <div className="p-6 space-y-6">
+        {/* Header */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">Schedule</h1>
+          <p className="text-gray-600 mt-1">
+            Manage appointments and staff assignments
+          </p>
         </div>
-        
-        {/* Day headers */}
-        {weekDays.map(day => (
-          <div
-            key={day.toISOString()}
-            className="bg-white p-3 text-center cursor-pointer hover:bg-gray-50 transition-colors"
-            onClick={() => {
-              setSelectedDay(day);
-              setViewMode('day');
-            }}
-          >
-            <div className="text-xs text-gray-500">
-              {format(day, 'EEE')}
-            </div>
-            <div className={`text-lg font-semibold ${isSameDay(day, new Date()) ? 'text-blue-600' : 'text-gray-900'}`}>
-              {format(day, 'd')}
-            </div>
-          </div>
-        ))}
-        
-        {/* Time slots */}
-        {timeSlots.map(slot => (
-          <div key={slot.hour} className="contents">
-            {/* Time label */}
-            <div className="bg-gray-50 p-3 text-xs text-gray-500 border-r border-gray-200">
-              {slot.label}
-            </div>
-            
-            {/* Day columns */}
-            {weekDays.map(day => {
-              const dayKey = format(day, 'yyyy-MM-dd');
-              const dayAppointments = appointmentsByDay[dayKey]?.[slot.hour.toString()] || [];
-              
-              return (
-                <Droppable key={`${dayKey}-${slot.hour}`} droppableId={`slot-${dayKey}-${slot.hour}`}>
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`bg-white p-2 min-h-[80px] transition-colors ${
-                        snapshot.isDraggingOver ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <div className="space-y-1">
-                        {dayAppointments.map((apt, index) => {
-                          const lead = leads.find(l => l.id === apt.leadId);
-                          return (
-                            <Draggable
-                              key={apt.id}
-                              draggableId={`appointment-${apt.id}`}
-                              index={index}
-                            >
-                              {(provided, snapshot) => (
-                                <div
-                                  ref={provided.innerRef}
-                                  {...provided.draggableProps}
-                                  {...provided.dragHandleProps}
-                                  className={`${snapshot.isDragging ? 'rotate-2 scale-105' : ''}`}
-                                >
-                                  <JobBlock appointment={apt} lead={lead} />
-                                </div>
-                              )}
-                            </Draggable>
-                          );
-                        })}
-                      </div>
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </DragDropContext>
-  );
-
-  // Day view component (simplified for now)
-  const DayView = () => (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <span>{format(selectedDay, 'EEEE, MMMM d, yyyy')}</span>
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setViewMode('week')}
+            onClick={() => setViewMode(viewMode === "week" ? "day" : "week")}
           >
-            Back to Week
+            {viewMode === "week" ? <List className="w-4 h-4" /> : <Grid3x3 className="w-4 h-4" />}
+            {viewMode === "week" ? "Day View" : "Week View"}
           </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-gray-500 text-center py-8">
-          Day view with 15-minute slots - Coming soon
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">Schedule</h1>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium px-3">
-              {format(currentWeek, 'MMM d, yyyy')}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-            <Button className="ml-4">
-              <Plus className="w-4 h-4 mr-2" />
-              New Job
-            </Button>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex items-center gap-4 mb-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <Input
-              placeholder="Search clients..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <Select value={serviceFilter} onValueChange={setServiceFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Service Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="">All Services</SelectItem>
-              <SelectItem value="standard">Standard Clean</SelectItem>
-              <SelectItem value="deep">Deep Clean</SelectItem>
-              <SelectItem value="move_in">Move-in Clean</SelectItem>
-              <SelectItem value="move_out">Move-out Clean</SelectItem>
-              <SelectItem value="office">Office Clean</SelectItem>
-              <SelectItem value="post_construction">Post-Construction</SelectItem>
-            </SelectContent>
-          </Select>
+          <Button onClick={() => setShowNewJobModal(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            New Job
+          </Button>
         </div>
       </div>
 
-      {/* Staff Selector */}
-      <StaffSelector />
+      {/* Filters Bar */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            {/* Search */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search by client name or address..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
 
-      {/* Calendar Views */}
-      {viewMode === 'week' ? <WeekView /> : <DayView />}
-    </div>
+            {/* Staff Filter */}
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-gray-500" />
+              <Select value={selectedStaff} onValueChange={setSelectedStaff}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All Staff" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Staff</SelectItem>
+                  {mockStaff.map((staff) => (
+                    <SelectItem key={staff.id} value={staff.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="w-5 h-5">
+                          <AvatarFallback className={`${staff.color} text-white text-xs`}>
+                            {staff.avatar}
+                          </AvatarFallback>
+                        </Avatar>
+                        {staff.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Service Type Filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <Select value={selectedServiceType} onValueChange={setSelectedServiceType}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="All Services" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Services</SelectItem>
+                  <SelectItem value="standard">Standard Clean</SelectItem>
+                  <SelectItem value="deep">Deep Clean</SelectItem>
+                  <SelectItem value="move_in">Move In/Out</SelectItem>
+                  <SelectItem value="office">Office Clean</SelectItem>
+                  <SelectItem value="post_construction">Post Construction</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Staff Band */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium text-gray-700 mr-2">Staff:</span>
+            <Button
+              variant={selectedStaff === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedStaff("all")}
+            >
+              All ({filteredAppointments.length})
+            </Button>
+            {mockStaff.map((staff) => {
+              const staffAppointments = filteredAppointments.filter(
+                (apt: Appointment) => apt.assignedCleaner === staff.id.toString()
+              );
+              return (
+                <Button
+                  key={staff.id}
+                  variant={selectedStaff === staff.id.toString() ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedStaff(staff.id.toString())}
+                  className="flex items-center gap-2"
+                >
+                  <Avatar className="w-5 h-5">
+                    <AvatarFallback className={`${staff.color} text-white text-xs`}>
+                      {staff.avatar}
+                    </AvatarFallback>
+                  </Avatar>
+                  {staff.name} ({staffAppointments.length})
+                </Button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Week Navigation */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={goToPreviousWeek}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={goToNextWeek}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="sm" onClick={goToToday}>
+            Today
+          </Button>
+        </div>
+        <h2 className="text-lg font-semibold">
+          {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d, yyyy")}
+        </h2>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
+        {weekDays.map((day) => {
+          const dayAppointments = getAppointmentsForDay(day);
+          const isCurrentDay = isToday(day);
+          const dayId = format(day, 'yyyy-MM-dd');
+          
+          return (
+            <Droppable key={dayId} droppableId={`day-${dayId}`}>
+              {(provided, snapshot) => (
+                <Card 
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                  className={`min-h-[400px] ${isCurrentDay ? 'ring-2 ring-blue-500' : ''} ${
+                    snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
+                  }`}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center justify-between">
+                      <span className={isCurrentDay ? 'text-blue-600' : ''}>
+                        {format(day, "EEE")}
+                      </span>
+                      <span className={`text-lg ${isCurrentDay ? 'text-blue-600 font-bold' : ''}`}>
+                        {format(day, "d")}
+                      </span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {dayAppointments.length === 0 ? (
+                      <div className="text-center text-gray-500 text-sm py-8">
+                        No appointments
+                      </div>
+                    ) : (
+                      dayAppointments.map((appointment: Appointment, index) => {
+                        const assignedStaffMember = mockStaff.find(s => s.id.toString() === appointment.assignedCleaner);
+                        const serviceTheme = getAppointmentTheme(appointment.serviceType);
+                        
+                        return (
+                          <Draggable 
+                            key={appointment.id} 
+                            draggableId={appointment.id.toString()} 
+                            index={index}
+                          >
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={`p-3 rounded-lg border-l-4 ${serviceTheme} bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
+                                  snapshot.isDragging ? 'shadow-lg rotate-2' : ''
+                                }`}
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="flex-1">
+                                    <h4 className="font-medium text-sm text-gray-900">
+                                      {appointment.customerName}
+                                    </h4>
+                                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
+                                      <Clock className="w-3 h-3" />
+                                      {getAppointmentTime(appointment)}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
+                                      <GripVertical className="w-4 h-4 text-gray-400" />
+                                    </div>
+                                    {assignedStaffMember && (
+                                      <Avatar className="w-6 h-6">
+                                        <AvatarFallback className={`${assignedStaffMember.color} text-white text-xs`}>
+                                          {assignedStaffMember.avatar}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                                    <MapPin className="w-3 h-3" />
+                                    <span className="truncate">{appointment.address}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                                    <Phone className="w-3 h-3" />
+                                    {displayPhoneNumber(appointment.customerPhone)}
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center justify-between mt-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {appointment.serviceType.replace('_', ' ')}
+                                  </Badge>
+                                  <Badge 
+                                    variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}
+                                    className="text-xs"
+                                  >
+                                    {appointment.status}
+                                  </Badge>
+                                </div>
+                              </div>
+                            )}
+                          </Draggable>
+                        );
+                      })
+                    )}
+                    {provided.placeholder}
+                  </CardContent>
+                </Card>
+              )}
+            </Droppable>
+          );
+        })}
+      </div>
+
+        {/* New Job Modal */}
+        <ScheduleJobModal
+          open={showNewJobModal}
+          onOpenChange={setShowNewJobModal}
+          lead={selectedLead}
+        />
+      </div>
+    </DragDropContext>
   );
 }

@@ -972,6 +972,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update appointment (for rescheduling)
+  app.patch("/api/appointments/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { scheduledDate, assignedCleaner } = req.body;
+      
+      // Get current appointment
+      const appointment = await storage.getAppointment(parseInt(id));
+      if (!appointment) {
+        return res.status(404).json({ error: "Appointment not found" });
+      }
+      
+      // Update appointment data
+      const updatedData = {
+        ...appointment,
+        scheduledDate: scheduledDate ? new Date(scheduledDate) : appointment.scheduledDate,
+        assignedCleaner: assignedCleaner || appointment.assignedCleaner
+      };
+      
+      // Update in storage (we'll need to add this method)
+      const updatedAppointment = await storage.updateAppointment(parseInt(id), updatedData);
+      
+      res.json(updatedAppointment);
+    } catch (error) {
+      console.error("Appointment update error:", error);
+      res.status(500).json({ error: "Failed to update appointment" });
+    }
+  });
+
   // Get SMS messages for a phone number
   app.get("/api/messages", async (req, res) => {
     try {

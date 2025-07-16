@@ -1,0 +1,59 @@
+ Cleaning Industry Scheduling Patterns
+1.1 Week & Day Views
+Most cleaning companies operate on weekly recurring jobs and same‑day scheduling, so interfaces default to a week view, showing each day’s bookings in columns labeled Monday–Sunday. A day view drill‑down allows detailed timing (e.g., 9 AM–10 AM slots) and quick edits
+Truein
+.
+
+1.2 Staff‑Centered Band
+A horizontal staff selector bar along the top displays cleaner names or team badges. Clicking a name filters the calendar to that person’s assignments. This mirrors vCita’s “staff calendar sync” feature, enabling quick reassignments and visibility of workloads
+vcita
+.
+
+1.3 Color‑Coding & Tags
+Jobs are color‑coded by service type (e.g., standard clean = blue, deep clean = green) or by team—not by priority, to keep the calendar uncluttered. Each job “card” displays client name, time, and location, similar to ZenMaid’s scheduler, which uses clean, saturated tabs to segment different tasks
+Connecteam
+.
+
+2. Core Scheduling Features
+2.1 Drag‑and‑Drop Rescheduling
+Users expect to drag job cards between time slots or staff columns to reschedule. Behind the scenes, such interactions trigger an onDragEnd handler that updates the booking’s date, time, or assigned cleaner in real time—mirroring field‑service best practices like Contractor Plus’s emphasis on mobile and GPS‑aware dispatching
+Contractor Plus
+.
+
+2.2 Quick‑Add & Bulk Actions
+A persistent “+ New Job” button opens a modal form overlay, pre‑filled with context (e.g., date/time under the cursor). Bulk actions—such as rescheduling multiple recurring jobs—are handled via multi‑select checkboxes and a batch edit panel, as recommended by MaidCentral for route optimization and reducing human error
+MaidCentral
+.
+
+2.3 Availability & Conflict Detection
+When creating or dragging a job, the calendar grays out unavailable slots (e.g., a team on break or a public holiday). If a drag causes an overlap, the UI displays a warning tooltip and prevents drop, ensuring no double‑bookings—an approach seen in vCita’s staff calendar management
+vcita
+.
+
+3. Filtering & Search
+3.1 Dynamic Filters
+Above the calendar, a compact filter dropdown lets users toggle:
+
+Date Range (today, this week, custom)
+
+Staff (all, specific cleaner)
+
+Service Type
+
+Filters auto‑apply without refreshing the page, matching Truein’s promise of optimized schedules that adapt instantly to criteria changes
+Truein
+.
+
+3.2 Search Bar
+A search field supports fuzzy matching by client name or address, highlighting matching jobs in the calendar and dimming others. This instant feedback helps dispatchers find specific bookings quickly.
+
+4. Mobile & Offline Considerations
+4.1 Responsive Layout
+On mobile, the week view collapses into a swipeable day view, letting users swipe days horizontally. Job cards become vertically stacked lists with time indicators—consistent with Zapier’s advice on balancing customizability and ease of use for both you and your customers
+Zapier
+.
+
+4.2 Offline Support
+Field workers often lose connectivity; the scheduling app should cache calendar data locally (via IndexedDB or service workers) and queue edits for sync when back online—mirroring top FSM solutions that ensure reliability even in remote locations
+Housecall Pro
+.

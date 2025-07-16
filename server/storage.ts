@@ -40,6 +40,8 @@ export interface IStorage {
   getAppointments(date?: string): Promise<Appointment[]>;
   getAppointment(id: number): Promise<Appointment | undefined>;
   updateAppointmentStatus(id: number, status: string): Promise<Appointment | undefined>;
+  updateAppointment(id: number, updates: Partial<InsertAppointment>): Promise<Appointment | undefined>;
+  updateAppointment(id: number, updates: Partial<InsertAppointment>): Promise<Appointment | undefined>;
   
   // SMS operations
   createSmsMessage(message: InsertSmsMessage): Promise<SmsMessage>;
@@ -321,6 +323,15 @@ export class DatabaseStorage implements IStorage {
     const [appointment] = await db
       .update(appointments)
       .set({ status, updatedAt: new Date() })
+      .where(eq(appointments.id, id))
+      .returning();
+    return appointment || undefined;
+  }
+
+  async updateAppointment(id: number, updates: Partial<InsertAppointment>): Promise<Appointment | undefined> {
+    const [appointment] = await db
+      .update(appointments)
+      .set({ ...updates, updatedAt: new Date() })
       .where(eq(appointments.id, id))
       .returning();
     return appointment || undefined;
