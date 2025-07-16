@@ -27,6 +27,18 @@ export default function Leads() {
 
   // Use leads hook for data management (memoized to prevent refetch on view toggle)
   const { leads, isLoading, updateLeadStatus, createLead, updateLead, isUpdating, isCreating } = useLeads();
+  
+  // Shared filters object for passing to components
+  const filters = {
+    searchQuery,
+    highPriorityOnly,
+    dateRange,
+    assignedCleaner,
+    setSearchQuery,
+    setHighPriorityOnly,
+    setDateRange,
+    setAssignedCleaner
+  };
 
   // Memoized filtered leads to prevent unnecessary recalculations
   const filteredLeads = useMemo(() => {
@@ -154,6 +166,7 @@ export default function Leads() {
                 }
               }}
               onEditLead={(lead) => setEditingLead(lead)}
+              filters={filters}
             />
           )}
         </div>

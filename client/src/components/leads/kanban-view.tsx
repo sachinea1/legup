@@ -2,7 +2,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautif
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, Trash2, Edit } from "lucide-react";
+import { Phone, Mail, MapPin, Trash2, Edit, GripVertical } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
@@ -18,9 +18,15 @@ interface KanbanViewProps {
   isUpdating: boolean;
   onDeleteLead: (id: number) => void;
   onEditLead?: (lead: Lead) => void;
+  filters?: {
+    searchQuery: string;
+    highPriorityOnly: boolean;
+    dateRange: { from?: Date; to?: Date };
+    assignedCleaner: string;
+  };
 }
 
-export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead, onEditLead }: KanbanViewProps) {
+export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead, onEditLead, filters }: KanbanViewProps) {
   const { toast } = useToast();
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -44,13 +50,21 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     return `${avgDays}d avg`;
   };
 
+  // Drag and drop handler with enhanced feedback and error handling
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
-    // If dropped outside a droppable area
-    if (!destination) return;
+    // If dropped outside a droppable area, show helpful message
+    if (!destination) {
+      toast({
+        title: "Invalid drop",
+        description: "Please drop the lead card into a valid stage column",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // If dropped in the same position
+    // If dropped in the same position, no action needed
     if (destination.droppableId === source.droppableId && destination.index === source.index) {
       return;
     }
@@ -58,13 +72,20 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     // Extract lead ID from draggableId (format: "lead-{id}")
     const leadId = parseInt(draggableId.replace('lead-', ''));
     const newStatus = destination.droppableId;
+    const sourceStatus = source.droppableId;
     
-    console.log('Drag end:', { leadId, newStatus, draggableId });
+    // Find the lead being moved for better feedback
+    const lead = leads.find(l => l.id === leadId);
+    if (!lead) {
+      toast({
+        title: "Error",
+        description: "Lead not found",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    // Update lead status
-    onUpdateLeadStatus(leadId, newStatus);
-    
-    // Show success toast with new stage name
+    // Status labels for user feedback
     const statusLabels = {
       new: "New",
       contacted: "Contacted", 
@@ -73,10 +94,14 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       closed_won: "Completed"
     };
     
+    // Show optimistic feedback immediately
     toast({
-      title: "Lead Moved",
-      description: `Moved to ${statusLabels[newStatus as keyof typeof statusLabels]}`,
+      title: "Lead moved",
+      description: `${lead.name} moved from ${statusLabels[sourceStatus as keyof typeof statusLabels]} to ${statusLabels[newStatus as keyof typeof statusLabels]}`,
     });
+
+    // Update lead status via parent component (includes API call and optimistic updates)
+    onUpdateLeadStatus(leadId, newStatus);
   };
 
   // Stage Toggle Bar Component for Kanban cards
@@ -146,21 +171,35 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
           <Card
             ref={provided.innerRef}
             {...provided.draggableProps}
-            {...provided.dragHandleProps}
             onClick={() => setSelectedLead(lead)}
-            className={`mb-3 cursor-grab active:cursor-grabbing ${
-              snapshot.isDragging ? "shadow-lg rotate-2 scale-105" : "hover:shadow-md"
-            } transition-all duration-200`}
+            className={`mb-3 cursor-pointer ${
+              snapshot.isDragging 
+                ? "shadow-xl rotate-1 scale-105 bg-blue-50 border-blue-200" 
+                : "hover:shadow-md hover:bg-gray-50"
+            } transition-all duration-200 border-l-4 ${
+              lead.priority === "urgent" ? "border-l-red-500" :
+              lead.priority === "high" ? "border-l-orange-500" :
+              "border-l-blue-500"
+            }`}
             role="button"
             tabIndex={0}
-            aria-label={`Lead card for ${lead.name}`}
+            aria-label={`Lead card for ${lead.name}. Click to view details, drag to move between stages.`}
           >
             <CardContent className="p-3">
-              {/* Header with service type and action buttons */}
+              {/* Drag handle and header */}
               <div className="flex items-start justify-between mb-2">
-                <Badge variant="outline" className={`${serviceTheme.color} text-xs`}>
-                  {serviceTheme.label}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <div 
+                    {...provided.dragHandleProps}
+                    className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+                    aria-label="Drag handle"
+                  >
+                    <GripVertical className="w-4 h-4" />
+                  </div>
+                  <Badge variant="outline" className={`${serviceTheme.color} text-xs`}>
+                    {serviceTheme.label}
+                  </Badge>
+                </div>
                 <div className="flex items-center gap-1">
                   {onEditLead && (
                     <Button
@@ -237,12 +276,33 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
               )}
 
               {/* Estimated value */}
-              {lead.estimatedValue && (
+              {lead.estimatedCost && (
                 <p className="text-xs font-medium text-green-600 mb-2">
-                  Est. Value: ${lead.estimatedValue}
+                  Est. Cost: ${lead.estimatedCost}
                 </p>
               )}
 
+              {/* Priority badge */}
+              {lead.priority && lead.priority !== "normal" && (
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs mb-2 ${
+                    lead.priority === "urgent" ? "border-red-500 text-red-600 bg-red-50" :
+                    lead.priority === "high" ? "border-orange-500 text-orange-600 bg-orange-50" :
+                    "border-blue-500 text-blue-600 bg-blue-50"
+                  }`}
+                >
+                  {lead.priority}
+                </Badge>
+              )}
+
+              {/* Stage Toggle Bar for quick status changes */}
+              <StageToggleBar
+                currentStatus={lead.status || "new"}
+                onStatusChange={(status) => onUpdateLeadStatus(lead.id, status)}
+                leadId={lead.id}
+                isUpdating={isUpdating}
+              />
 
             </CardContent>
           </Card>
@@ -360,8 +420,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
             setDeleteDialog({open: false});
           }
         }}
-        leadName={deleteDialog.lead?.name}
-        isDeleting={false}
+        leadName={deleteDialog.lead?.name || ""}
       />
 
       {/* Lead Detail Modal */}
@@ -371,7 +430,6 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         onOpenChange={(open) => !open && setSelectedLead(null)}
         onUpdateLeadStatus={(id, status) => {
           onUpdateLeadStatus(id, status);
-          // Update the selected lead state to reflect changes immediately
           if (selectedLead && selectedLead.id === id) {
             setSelectedLead({ ...selectedLead, status });
           }
