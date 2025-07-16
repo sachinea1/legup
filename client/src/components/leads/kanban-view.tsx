@@ -352,7 +352,13 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         lead={selectedLead}
         open={!!selectedLead}
         onOpenChange={(open) => !open && setSelectedLead(null)}
-        onUpdateLeadStatus={onUpdateLeadStatus}
+        onUpdateLeadStatus={(id, status) => {
+          onUpdateLeadStatus(id, status);
+          // Update the selected lead state to reflect changes immediately
+          if (selectedLead && selectedLead.id === id) {
+            setSelectedLead({ ...selectedLead, status });
+          }
+        }}
         onDeleteLead={(id) => {
           onDeleteLead(id);
           setSelectedLead(null);

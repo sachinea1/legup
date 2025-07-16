@@ -105,14 +105,14 @@ export function ListView({
                   ? "bg-green-100 text-green-700 hover:bg-green-200"
                   : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
                 }
-                ${index === 0 ? "rounded-l-md" : ""}
-                ${index === statusStages.length - 1 ? "rounded-r-md" : ""}
                 ${index > 0 ? "-ml-1" : ""}
               `}
               style={{
-                clipPath: index === statusStages.length - 1 
-                  ? "none" 
-                  : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)"
+                clipPath: index === 0
+                  ? "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)"
+                  : index === statusStages.length - 1 
+                  ? "polygon(8px 0, 100% 0, 100% 100%, 8px 100%, 0 50%)" 
+                  : "polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%)"
               }}
             >
               {stage.label}
@@ -133,19 +133,21 @@ export function ListView({
   return (
     <div className="space-y-4">
       {/* Stage Filter Bar - Arrow Style like Status Navigation */}
-      <div className="flex items-center bg-gray-50 rounded-lg p-1 gap-0 mb-4">
+      <div className="flex items-center bg-gray-50 rounded-lg p-2 gap-0 mb-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setStageFilter(null)}
           className={`
-            relative h-8 px-3 text-xs font-medium transition-all
+            relative h-10 px-4 text-sm font-medium transition-all
             ${!stageFilter 
               ? "bg-blue-600 text-white shadow-sm" 
               : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
             }
-            rounded-l-md
           `}
+          style={{
+            clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%)"
+          }}
         >
           All Stages
         </Button>
@@ -156,18 +158,17 @@ export function ListView({
             size="sm"
             onClick={() => setStageFilter(stage.value)}
             className={`
-              relative h-8 px-3 text-xs font-medium transition-all
+              relative h-10 px-4 text-sm font-medium transition-all
               ${stageFilter === stage.value
                 ? "bg-blue-600 text-white shadow-sm" 
                 : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
               }
-              ${index === statusStages.length - 1 ? "rounded-r-md" : ""}
-              ${index > 0 ? "-ml-1" : ""}
+              -ml-1
             `}
             style={{
               clipPath: index === statusStages.length - 1 
-                ? "none" 
-                : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)"
+                ? "polygon(10px 0, 100% 0, 100% 100%, 10px 100%, 0 50%)" 
+                : "polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%)"
             }}
           >
             {stage.label}

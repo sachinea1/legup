@@ -1,0 +1,94 @@
+Refactor the KanbanView component in client/src/pages/leads.tsx to implement fully functional drag‑and‑drop using react‑beautiful‑dnd, following these exact steps:
+
+1. Install & Import  
+   - Ensure `react-beautiful-dnd` is installed: `npm install react-beautiful-dnd` :contentReference[oaicite:0]{index=0}  
+   - Import at the top of KanbanView.js:
+     ```js
+     import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+     ```
+
+2. Wrap with DragDropContext  
+   - Enclose your entire Kanban board columns within `<DragDropContext onDragEnd={handleDragEnd}>` :contentReference[oaicite:1]{index=1}  
+   - Implement `handleDragEnd(result)`:
+     ```js
+     const handleDragEnd = (result) => {
+       const { source, destination, draggableId } = result;
+       if (!destination) return;
+       if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+       updateLeadStage(draggableId, destination.droppableId);
+     };
+     ```
+   - Call your existing `updateLead(id, newStage)` inside `updateLeadStage` :contentReference[oaicite:2]{index=2}.
+
+3. Define Droppable Columns  
+   - For each pipeline stage, render:
+     ```jsx
+     <Droppable droppableId="{stage}">
+       {(provided) => (
+         <div ref={provided.innerRef} {...provided.droppableProps} className="kanban-column">
+           <h2>{stage} ({leadsByStage[stage].length})</h2>
+           {leadsByStage[stage].map((lead, index) => (
+             <Draggable key={lead.id} draggableId={lead.id} index={index}>
+               {(provided, snapshot) => (
+                 <div
+                   ref={provided.innerRef}
+                   {...provided.draggableProps}
+                   {...provided.dragHandleProps}
+                   className={`kanban-card ${snapshot.isDragging ? 'dragging' : ''}`}
+                 >
+                   {/* Card content */}
+                 </div>
+               )}
+             </Draggable>
+           ))}
+           {provided.placeholder}
+         </div>
+       )}
+     </Droppable>
+     ```  
+   - Ensure each `stage` string matches the lead’s `stage` property :contentReference[oaicite:3]{index=3}.
+
+4. Styling for Dragging  
+   - Add CSS (or Tailwind**) classes for visual feedback:
+     ```css
+     .kanban-column { @apply bg-gray-100 p-2 rounded; }
+     .kanban-card { @apply bg-white p-4 mb-2 rounded shadow; }
+     .kanban-card.dragging { @apply bg-blue-50 shadow-lg; }
+     ```  
+   - Use Tailwind utilities or CSS modules to ensure smooth UI :contentReference[oaicite:4]{index=4}.
+
+5. Memoize Leads by Stage  
+   - Compute grouped leads once per render:
+     ```js
+     const leadsByStage = useMemo(() => {
+       return stages.reduce((acc, stage) => {
+         acc[stage] = leads.filter(l => l.stage === stage);
+         return acc;
+       }, {});
+     }, [leads]);
+     ```  
+   - This prevents re‑render loops during drag events :contentReference[oaicite:5]{index=5}.
+
+6. Prevent Unnecessary Renders  
+   - Wrap each `Draggable` with `React.memo` to avoid rerenders when other cards move :contentReference[oaicite:6]{index=6}.
+
+7. Accessibility & Keyboard  
+   - Ensure `<DragDropContext>` includes `keyboardSensor` defaults.  
+   - Add `aria-label` on cards and columns for screen readers :contentReference[oaicite:7]{index=7}.
+
+8. Test & Validate  
+   - Verify drag‑and‑drop works on initial render and after page refresh (watch for the common `<div key>` issue) :contentReference[oaicite:8]{index=8}.  
+   - Ensure `onDragStart`, `onDragUpdate`, and `onDragEnd` fire correctly (log events for debugging).
+
+9. Alternative Library (if issues persist)  
+   - If react‑beautiful‑dnd still fails, consider `@dnd-kit/core`:
+     ```bash
+     npm install @dnd-kit/core @dnd-kit/sortable
+     ```  
+   - Use basic sortable example from dnd‑kit documentation  
+     :contentReference[oaicite:9]{index=9}.
+
+Deliverables:
+- Updated KanbanView component with functional drag‑and‑drop
+- Styling updates in CSS/Tailwind for columns and cards
+- Confirmed `handleDragEnd` calls `updateLeadStage` to persist stage changes
