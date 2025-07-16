@@ -67,7 +67,7 @@ export function LeadDetailModal({
                 ${index > 0 ? "-ml-1" : ""}
               `}
               style={{
-                clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)"
+                clipPath: "polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%)"
               }}
             >
               {stage.label}

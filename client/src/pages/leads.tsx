@@ -130,6 +130,7 @@ export default function Leads() {
                   console.log("Delete lead:", id);
                 }
               }}
+              onEditLead={(lead) => console.log('Edit lead:', lead)}
             />
           ) : (
             <KanbanView
@@ -142,6 +143,7 @@ export default function Leads() {
                   console.log("Delete lead:", id);
                 }
               }}
+              onEditLead={(lead) => console.log('Edit lead:', lead)}
             />
           )}
         </div>

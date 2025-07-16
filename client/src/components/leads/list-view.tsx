@@ -110,7 +110,7 @@ export function ListView({
                 ${index > 0 ? "-ml-1" : ""}
               `}
               style={{
-                clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)"
+                clipPath: "polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%)"
               }}
             >
               {stage.label}
@@ -144,7 +144,7 @@ export function ListView({
             }
           `}
           style={{
-            clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%)"
+            clipPath: "polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%)"
           }}
         >
           All Stages
@@ -164,7 +164,7 @@ export function ListView({
               -ml-1
             `}
             style={{
-              clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%)"
+              clipPath: "polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%)"
             }}
           >
             {stage.label}
@@ -344,10 +344,7 @@ export function ListView({
                   </div>
                   
                   <div className="space-y-3">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Lead Source</label>
-                      <p className="text-sm text-gray-600 mt-1 capitalize">{lead.source || "Unknown"}</p>
-                    </div>
+
                     
                     {lead.estimatedValue && (
                       <div>

@@ -26,7 +26,7 @@ export function NewLeadForm({ onSubmit, isLoading }: NewLeadFormProps) {
       rooms: "",
       status: "new",
       priority: "normal",
-      source: "manual",
+
       notes: "",
       estimatedValue: undefined,
     },
@@ -171,31 +171,7 @@ export function NewLeadForm({ onSubmit, isLoading }: NewLeadFormProps) {
             )}
           />
 
-          {/* Source */}
-          <FormField
-            control={form.control}
-            name="source"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Lead Source</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select source" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="manual">Manual Entry</SelectItem>
-                    <SelectItem value="website">Website</SelectItem>
-                    <SelectItem value="phone">Phone Call</SelectItem>
-                    <SelectItem value="referral">Referral</SelectItem>
-                    <SelectItem value="social">Social Media</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+
         </div>
 
         {/* Address */}
