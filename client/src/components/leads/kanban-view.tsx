@@ -2,7 +2,7 @@ import { DragDropContext, Droppable, Draggable, DropResult, DragStart, DragUpdat
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, Trash2, Edit, GripVertical } from "lucide-react";
+import { Phone, Mail, MapPin, Trash2, Edit, GripVertical, CalendarPlus } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
@@ -18,6 +18,7 @@ interface KanbanViewProps {
   isUpdating: boolean;
   onDeleteLead: (id: number) => void;
   onEditLead?: (lead: Lead) => void;
+  onScheduleLead?: (lead: Lead) => void;
   filters?: {
     searchQuery: string;
     highPriorityOnly: boolean;
@@ -26,7 +27,7 @@ interface KanbanViewProps {
   };
 }
 
-export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead, onEditLead, filters }: KanbanViewProps) {
+export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead, onEditLead, onScheduleLead, filters }: KanbanViewProps) {
   const { toast } = useToast();
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -206,6 +207,19 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
                     {serviceTheme.label}
                   </Badge>
                   <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onScheduleLead?.(lead);
+                      }}
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-green-600 hover:bg-green-50"
+                      aria-label="Schedule Job"
+                      title="Schedule Job"
+                    >
+                      <CalendarPlus className="w-3 h-3" />
+                    </Button>
                     {onEditLead && (
                       <Button
                         variant="ghost"

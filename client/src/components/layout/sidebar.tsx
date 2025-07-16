@@ -48,9 +48,9 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     },
     {
       icon: Calendar,
-      label: "Calendar",
-      href: "#",
-      active: false,
+      label: "Schedule",
+      href: "/schedule",
+      active: location === "/schedule",
     },
     {
       icon: MessageSquare,

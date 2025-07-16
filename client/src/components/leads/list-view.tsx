@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Mail, MapPin, ChevronDown, ChevronRight, Trash2, Edit } from "lucide-react";
+import { Phone, Mail, MapPin, ChevronDown, ChevronRight, Trash2, Edit, CalendarPlus } from "lucide-react";
 import { format } from "date-fns";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
@@ -17,6 +17,7 @@ interface ListViewProps {
   onHighPriorityChange: (enabled: boolean) => void;
   onDeleteLead: (id: number) => void;
   onEditLead?: (lead: Lead) => void;
+  onScheduleLead?: (lead: Lead) => void;
 }
 
 export function ListView({ 
@@ -26,7 +27,8 @@ export function ListView({
   highPriorityOnly, 
   onHighPriorityChange,
   onDeleteLead,
-  onEditLead
+  onEditLead,
+  onScheduleLead
 }: ListViewProps) {
   const [expandedLeads, setExpandedLeads] = useState<Set<number>>(new Set());
   const [stageFilter, setStageFilter] = useState<string | null>(null);
@@ -274,6 +276,19 @@ export function ListView({
                       {statusTheme.label}
                     </Badge>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onScheduleLead?.(lead);
+                        }}
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-green-600 hover:bg-green-50"
+                        aria-label="Schedule Job"
+                        title="Schedule Job"
+                      >
+                        <CalendarPlus className="w-3 h-3" />
+                      </Button>
                       {onEditLead && (
                         <Button
                           variant="ghost"

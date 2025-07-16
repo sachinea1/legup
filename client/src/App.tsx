@@ -13,6 +13,7 @@ import Widget from "@/pages/widget";
 import AuthPage from "@/pages/auth";
 import OnboardingPage from "@/pages/onboarding";
 import NotFound from "@/pages/not-found";
+import SchedulePage from "@/pages/schedule";
 
 function Router() {
   const [location] = useLocation();
@@ -38,6 +39,7 @@ function Router() {
         <ProtectedRoute path="/" component={Dashboard} />
         <ProtectedRoute path="/dashboard" component={Dashboard} />
         <ProtectedRoute path="/leads" component={Leads} />
+        <ProtectedRoute path="/schedule" component={SchedulePage} />
         <ProtectedRoute path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>

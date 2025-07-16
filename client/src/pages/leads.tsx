@@ -9,6 +9,7 @@ import { NewLeadForm } from "@/components/leads/new-lead-form";
 import { EditLeadForm } from "@/components/leads/edit-lead-form";
 import { FiltersModal } from "@/components/leads/filters-modal";
 import { OnboardingOverlay } from "@/components/onboarding-overlay";
+import { ScheduleJobModal } from "@/components/scheduling/schedule-job-modal";
 
 export default function Leads() {
   // View mode state
@@ -24,6 +25,7 @@ export default function Leads() {
   const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [schedulingLead, setSchedulingLead] = useState<Lead | null>(null);
 
   // Use leads hook for data management (memoized to prevent refetch on view toggle)
   const { leads, isLoading, updateLeadStatus, createLead, updateLead, isUpdating, isCreating } = useLeads();
@@ -153,6 +155,7 @@ export default function Leads() {
                 }
               }}
               onEditLead={(lead) => setEditingLead(lead)}
+              onScheduleLead={(lead) => setSchedulingLead(lead)}
             />
           ) : (
             <KanbanView
@@ -166,6 +169,7 @@ export default function Leads() {
                 }
               }}
               onEditLead={(lead) => setEditingLead(lead)}
+              onScheduleLead={(lead) => setSchedulingLead(lead)}
               filters={filters}
             />
           )}
@@ -203,6 +207,13 @@ export default function Leads() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Schedule Job Modal */}
+        <ScheduleJobModal
+          open={!!schedulingLead}
+          onOpenChange={(open) => !open && setSchedulingLead(null)}
+          lead={schedulingLead}
+        />
 
         {/* Filters Modal for Kanban View */}
         <FiltersModal

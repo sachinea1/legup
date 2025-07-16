@@ -1,0 +1,60 @@
+Implement a fully integrated Scheduling page and Lead‑to‑Calendar workflow in client/src/pages/leads.tsx and client/src/pages/schedule.tsx that includes:
+
+1. Calendar Views
+   • Default **Week View** (Mon–Sun columns, 8 AM–6 PM hourly slots).  
+   • Click any day header to enter **Day View** (15‑minute slots, editable). :contentReference[oaicite:9]{index=9}
+
+2. Staff Selector Band
+   • Render a horizontal bar above the calendar with avatars and names of all cleaners (from `useTeam`).  
+   • Clicking a staff badge filters the calendar to show only that member’s jobs. :contentReference[oaicite:10]{index=10}
+
+3. Job Block Design
+   • Color‑code blocks by **serviceType** (e.g., standard clean = blue, deep clean = green). :contentReference[oaicite:11]{index=11}  
+   • Each block shows client name (from lead), scheduled time, and location. :contentReference[oaicite:12]{index=12}
+
+4. Linked Lead Scheduling
+   • On the Leads page, add a “Schedule Job” button on each lead card that opens the calendar modal, pre‑selecting the lead and date/time slot. :contentReference[oaicite:13]{index=13}  
+   • After scheduling, link the job in the calendar to the lead (display lead name/tag in block) and update `lead.scheduledAt`.
+
+5. Drag‑and‑Drop Rescheduling
+   • Enable drag‑and‑drop of job blocks across times and staff columns using react‑beautiful‑dnd.  
+   • On drop, call `updateLead(leadId, { scheduledAt: newDateTime, assignedStaff: newStaff })` and show toast “Job rescheduled.” :contentReference[oaicite:14]{index=14}
+
+6. Quick‑Add & Bulk Actions
+   • Persistent “+ New Job” button above calendar opens modal with selected slot pre‑filled. :contentReference[oaicite:15]{index=15}  
+   • Allow multi‑select of job blocks via checkboxes to perform bulk reschedule or reassign staff.
+
+7. Availability & Conflict Detection
+   • Gray out calendar slots when a staff member is unavailable (breaks, holidays).  
+   • Prevent drops into grayed slots; show tooltip “Unavailable.” :contentReference[oaicite:16]{index=16}
+
+8. Filters & Search
+   • Compact filter bar above calendar: Date Range, Staff dropdown, Service Type dropdown.  
+   • Search field for fuzzy matches on client name/address, dim non‑matches. :contentReference[oaicite:17]{index=17}
+
+9. Mobile & Offline Support
+   • Week View collapses to **swipeable Day View** on mobile. :contentReference[oaicite:18]{index=18}  
+   • Implement IndexedDB/service worker caching so calendar operations queue offline and sync when online. :contentReference[oaicite:19]{index=19}
+
+10. Property Management API Integration
+    • Consume external webhook to auto‑create tentative “PM Request” jobs in calendar, tagged light gray. :contentReference[oaicite:20]{index=20}
+
+11. Automated Reminders
+    • Use Twilio/SendGrid to send SMS/email reminders at 24 h and 1 h before scheduled job. :contentReference[oaicite:21]{index=21}
+
+12. Team Management UI
+    • Create a **Team** page/modal: list staff (avatar, name, role) with Add/Edit/Remove controls.  
+    • Removing staff reassigns their future jobs to an “Unassigned” bucket.  
+    • Reflect staff roster in staff selector and assignment dropdowns in both Leads and Schedule pages.
+
+Data & State:
+- Use `useLeads` context/hook to manage `leads`, `updateLead`, and `filters`.  
+- Use `useTeam` context/hook to manage `teamMembers`, `addMember`, and `removeMember`.  
+- Memoize grouped leads/jobs by stage or date to avoid refetch on view toggles.  
+
+Styling & Responsiveness:
+- Use Tailwind CSS for theming: define palette for service types, brand, and UI states.  
+- Ensure ARIA roles (`listbox`, `option`) and keyboard drag support for accessibility.  
+- Test across desktop/tablet/mobile for responsive behavior.
+
+This implementation will seamlessly link lead records to calendar jobs, provide flexible week/day scheduling, and empower owners to manage their teams—delivering an industry‑standard, mobile‑friendly scheduling solution for cleaning businesses.  
