@@ -110,7 +110,7 @@ export function ListView({
                 ${index > 0 ? "-ml-1" : ""}
               `}
               style={{
-                clipPath: "polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%)"
+                clipPath: "polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%)"
               }}
             >
               {stage.label}
@@ -144,7 +144,7 @@ export function ListView({
             }
           `}
           style={{
-            clipPath: "polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%)"
+            clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)"
           }}
         >
           All Stages
@@ -164,7 +164,7 @@ export function ListView({
               -ml-1
             `}
             style={{
-              clipPath: "polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%)"
+              clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%)"
             }}
           >
             {stage.label}
@@ -321,19 +321,21 @@ export function ListView({
                 {/* Lead Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                   <div className="space-y-3">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Service Details</label>
-                      <div className="mt-1 space-y-1">
-                        <p className="text-sm text-gray-900">Service: {serviceTheme.label}</p>
-                        {lead.rooms && <p className="text-sm text-gray-600">Rooms: {lead.rooms}</p>}
-                        {lead.address && (
-                          <p className="text-sm text-gray-600 flex items-start gap-1">
-                            <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                            {lead.address}
-                          </p>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-gray-900">{serviceTheme.label}</span>
+                      {lead.address && (
+                        <span className="text-sm text-gray-600 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
+                          {lead.address}
+                        </span>
+                      )}
                     </div>
+                    {lead.rooms && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Rooms</label>
+                        <p className="text-sm text-gray-600">{lead.rooms}</p>
+                      </div>
+                    )}
                     
                     {lead.notes && (
                       <div>

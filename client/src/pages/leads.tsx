@@ -6,6 +6,7 @@ import { TopNav } from "@/components/leads/top-nav";
 import { ListView } from "@/components/leads/list-view";
 import { KanbanView } from "@/components/leads/kanban-view";
 import { NewLeadForm } from "@/components/leads/new-lead-form";
+import { EditLeadForm } from "@/components/leads/edit-lead-form";
 import { FiltersModal } from "@/components/leads/filters-modal";
 import { OnboardingOverlay } from "@/components/onboarding-overlay";
 
@@ -22,9 +23,10 @@ export default function Leads() {
   // Dialog states
   const [showNewLeadDialog, setShowNewLeadDialog] = useState(false);
   const [showFiltersModal, setShowFiltersModal] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
 
   // Use leads hook for data management (memoized to prevent refetch on view toggle)
-  const { leads, isLoading, updateLeadStatus, createLead, isUpdating, isCreating } = useLeads();
+  const { leads, isLoading, updateLeadStatus, createLead, updateLead, isUpdating, isCreating } = useLeads();
 
   // Memoized filtered leads to prevent unnecessary recalculations
   const filteredLeads = useMemo(() => {
@@ -58,6 +60,14 @@ export default function Leads() {
   const handleCreateLead = (data: InsertLead) => {
     createLead(data);
     setShowNewLeadDialog(false);
+  };
+
+  // Handle editing lead
+  const handleEditLead = (data: Partial<InsertLead>) => {
+    if (editingLead) {
+      updateLead(editingLead.id, data);
+      setEditingLead(null);
+    }
   };
 
   if (isLoading) {
@@ -130,7 +140,7 @@ export default function Leads() {
                   console.log("Delete lead:", id);
                 }
               }}
-              onEditLead={(lead) => console.log('Edit lead:', lead)}
+              onEditLead={(lead) => setEditingLead(lead)}
             />
           ) : (
             <KanbanView
@@ -143,7 +153,7 @@ export default function Leads() {
                   console.log("Delete lead:", id);
                 }
               }}
-              onEditLead={(lead) => console.log('Edit lead:', lead)}
+              onEditLead={(lead) => setEditingLead(lead)}
             />
           )}
         </div>
@@ -158,6 +168,26 @@ export default function Leads() {
               </DialogDescription>
             </DialogHeader>
             <NewLeadForm onSubmit={handleCreateLead} isLoading={isCreating} />
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Lead Dialog */}
+        <Dialog open={!!editingLead} onOpenChange={(open) => !open && setEditingLead(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Lead</DialogTitle>
+              <DialogDescription>
+                Update lead information and details.
+              </DialogDescription>
+            </DialogHeader>
+            {editingLead && (
+              <EditLeadForm 
+                lead={editingLead} 
+                onSubmit={handleEditLead} 
+                isLoading={isUpdating} 
+                onCancel={() => setEditingLead(null)}
+              />
+            )}
           </DialogContent>
         </Dialog>
 
