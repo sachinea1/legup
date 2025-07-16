@@ -70,7 +70,7 @@ export function LeadDetailModal({
                 clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%)"
               }}
             >
-              {stage.label}
+              <span className="pl-2">{stage.label}</span>
             </Button>
           </div>
         );

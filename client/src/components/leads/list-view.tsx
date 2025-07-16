@@ -113,7 +113,7 @@ export function ListView({
                 clipPath: "polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%)"
               }}
             >
-              {stage.label}
+              <span className="pl-2">{stage.label}</span>
             </Button>
           </div>
         );
@@ -147,7 +147,7 @@ export function ListView({
             clipPath: "polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%)"
           }}
         >
-          All Stages
+          <span className="pl-2">All Stages</span>
         </Button>
         {statusStages.map((stage, index) => (
           <Button
@@ -167,7 +167,7 @@ export function ListView({
               clipPath: "polygon(0 0, calc(100% - 16px) 0, 100% 50%, calc(100% - 16px) 100%, 0 100%, 16px 50%)"
             }}
           >
-            {stage.label}
+            <span className="pl-2">{stage.label}</span>
           </Button>
         ))}
       </div>

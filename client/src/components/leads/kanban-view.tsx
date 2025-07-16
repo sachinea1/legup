@@ -1,8 +1,8 @@
-import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
+import { DragDropContext, Droppable, Draggable, DropResult, DragStart, DragUpdate } from "react-beautiful-dnd";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, Trash2, Edit } from "lucide-react";
+import { Phone, Mail, MapPin, Trash2, Edit, GripVertical } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
 import { LeadDetailModal } from "./lead-detail-modal";
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 
 interface KanbanViewProps {
   leads: Lead[];
@@ -30,15 +30,26 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
   const { toast } = useToast();
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [dragState, setDragState] = useState<{
+    isDragging: boolean;
+    draggedLeadId: number | null;
+    sourceColumn: string | null;
+  }>({
+    isDragging: false,
+    draggedLeadId: null,
+    sourceColumn: null,
+  });
   
   // Updated status order for the new columns
   const statusOrder = ["new", "contacted", "qualified", "appointment_set", "closed_won"];
   
-  // Group leads by status
-  const leadsByStatus = statusOrder.reduce((acc, status) => {
-    acc[status] = leads.filter(lead => lead.status === status);
-    return acc;
-  }, {} as Record<string, Lead[]>);
+  // Memoized grouping of leads by status for performance
+  const leadsByStatus = useMemo(() => {
+    return statusOrder.reduce((acc, status) => {
+      acc[status] = leads.filter(lead => lead.status === status);
+      return acc;
+    }, {} as Record<string, Lead[]>);
+  }, [leads, statusOrder]);
 
   // Calculate average time in stage (mock calculation for now)
   const getAverageTimeInStage = (status: string): string => {
@@ -50,19 +61,39 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     return `${avgDays}d avg`;
   };
 
-  // Drag and drop handler with enhanced feedback and error handling
-  const handleDragEnd = (result: DropResult) => {
+  // Drag event handlers with comprehensive state management
+  const handleDragStart = useCallback((start: DragStart) => {
+    const leadId = parseInt(start.draggableId.replace('lead-', ''));
+    setDragState({
+      isDragging: true,
+      draggedLeadId: leadId,
+      sourceColumn: start.source.droppableId,
+    });
+    console.log("Drag started:", start);
+  }, []);
+
+  const handleDragUpdate = useCallback((update: DragUpdate) => {
+    console.log("Drag update:", update);
+  }, []);
+
+  const handleDragEnd = useCallback((result: DropResult) => {
     const { destination, source, draggableId } = result;
+    
+    // Reset drag state
+    setDragState({
+      isDragging: false,
+      draggedLeadId: null,
+      sourceColumn: null,
+    });
 
     console.log("Drag end result:", result);
 
-    // If dropped outside a droppable area, show helpful message
+    // If dropped outside a droppable area
     if (!destination) {
       console.log("No destination - dropped outside");
       toast({
-        title: "Invalid drop",
-        description: "Please drop the lead card into a valid stage column",
-        variant: "destructive",
+        title: "Drop cancelled",
+        description: "Lead returned to original position",
       });
       return;
     }
@@ -73,14 +104,14 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       return;
     }
 
-    // Extract lead ID from draggableId (format: "lead-{id}")
+    // Extract lead ID and validate
     const leadId = parseInt(draggableId.replace('lead-', ''));
     const newStatus = destination.droppableId;
     const sourceStatus = source.droppableId;
     
     console.log("Moving lead:", leadId, "from", sourceStatus, "to", newStatus);
     
-    // Find the lead being moved for better feedback
+    // Find the lead being moved
     const lead = leads.find(l => l.id === leadId);
     if (!lead) {
       console.log("Lead not found:", leadId);
@@ -104,57 +135,69 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     // Show optimistic feedback immediately
     toast({
       title: "Lead moved",
-      description: `${lead.name} moved from ${statusLabels[sourceStatus as keyof typeof statusLabels]} to ${statusLabels[newStatus as keyof typeof statusLabels]}`,
+      description: `${lead.name} moved to ${statusLabels[newStatus as keyof typeof statusLabels]}`,
     });
 
-    // Update lead status via parent component (includes API call and optimistic updates)
+    // Update lead status via parent component
     onUpdateLeadStatus(leadId, newStatus);
-  };
+  }, [leads, onUpdateLeadStatus, toast]);
 
   // Simplified lead card without stage toggle buttons
 
-  const LeadCard = ({ lead, index }: { lead: Lead; index: number }) => {
+  // Memoized Lead Card component for performance
+  const LeadCard = useMemo(() => ({ lead, index }: { lead: Lead; index: number }) => {
     const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
+    const isDraggedItem = dragState.draggedLeadId === lead.id;
 
     return (
       <Draggable 
         draggableId={`lead-${lead.id}`} 
         index={index} 
         isDragDisabled={isUpdating}
-        type="LEAD"
       >
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.draggableProps}
-            {...provided.dragHandleProps}
-            className={`mb-3 select-none ${
+            className={`mb-3 select-none transition-all duration-150 ${
               snapshot.isDragging 
-                ? "scale-105 rotate-1 z-50 cursor-grabbing opacity-90" 
-                : "cursor-grab"
-            } transition-all duration-200`}
-            onMouseDown={(e) => {
-              console.log("Mouse down on card:", lead.id);
-            }}
+                ? "scale-105 rotate-1 z-50 opacity-90" 
+                : isDraggedItem
+                ? "opacity-50"
+                : ""
+            }`}
+            role="listitem"
+            aria-grabbed={snapshot.isDragging}
+            aria-label={`Lead ${lead.name}. Use spacebar to lift, arrow keys to move, spacebar to drop.`}
           >
+            {/* Drag Handle */}
+            <div 
+              {...provided.dragHandleProps}
+              className={`absolute left-1 top-1/2 transform -translate-y-1/2 z-10 p-1 rounded ${
+                snapshot.isDragging ? "cursor-grabbing" : "cursor-grab"
+              } hover:bg-gray-100 transition-colors`}
+              aria-label="Drag handle"
+            >
+              <GripVertical className="w-4 h-4 text-gray-400" />
+            </div>
+
             <Card
               onClick={(e) => {
-                if (!snapshot.isDragging) {
+                if (!snapshot.isDragging && !isDraggedItem) {
                   setSelectedLead(lead);
                 }
               }}
-              className={`${
+              className={`relative pl-8 ${
                 snapshot.isDragging 
-                  ? "shadow-xl bg-blue-50 border-blue-200" 
-                  : "hover:shadow-md hover:bg-gray-50"
-              } border-l-4 ${
+                  ? "shadow-2xl bg-blue-50 border-blue-300 ring-2 ring-blue-200" 
+                  : "hover:shadow-md hover:bg-gray-50 hover:border-gray-300"
+              } border-l-4 transition-all duration-150 ${
                 lead.priority === "urgent" ? "border-l-red-500" :
                 lead.priority === "high" ? "border-l-orange-500" :
                 "border-l-blue-500"
               }`}
               role="button"
-              tabIndex={0}
-              aria-label={`Lead card for ${lead.name}. Drag to move between stages or click to view details.`}
+              tabIndex={snapshot.isDragging ? -1 : 0}
             >
               <CardContent className="p-3">
                 {/* Header with service type and action buttons */}
@@ -264,7 +307,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         )}
       </Draggable>
     );
-  };
+  }, [dragState.draggedLeadId, isUpdating, setSelectedLead]);
 
   const KanbanColumn = ({ status }: { status: string }) => {
     const statusTheme = getStatusTheme(status);
@@ -297,27 +340,39 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         </div>
 
         {/* Droppable Column */}
-        <Droppable droppableId={status} type="LEAD">
+        <Droppable droppableId={status}>
           {(provided, snapshot) => (
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}
-              className={`p-3 min-h-96 bg-gray-50 rounded-b-lg border-2 border-t-0 transition-colors ${
+              className={`p-3 min-h-96 rounded-b-lg border-2 border-t-0 transition-all duration-200 ${
                 snapshot.isDraggingOver 
-                  ? "bg-blue-50 border-blue-200" 
-                  : "border-gray-200"
+                  ? "bg-blue-50 border-blue-300 ring-2 ring-blue-100" 
+                  : dragState.isDragging
+                  ? "bg-gray-100 border-gray-300"
+                  : "bg-gray-50 border-gray-200"
               }`}
+              role="listbox"
+              aria-label={`${getStatusTheme(status).label} stage`}
             >
               {columnLeads.map((lead, index) => (
                 <LeadCard key={`lead-${lead.id}`} lead={lead} index={index} />
               ))}
               {provided.placeholder}
               
-              {/* Empty state */}
+              {/* Enhanced empty state with drag hint */}
               {columnLeads.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-400 text-sm">No leads in this stage</p>
-                  <p className="text-gray-300 text-xs mt-1">Drag leads here</p>
+                <div className={`text-center py-12 transition-all duration-200 ${
+                  snapshot.isDraggingOver 
+                    ? "border-2 border-dashed border-blue-300 bg-blue-25 rounded-lg" 
+                    : dragState.isDragging
+                    ? "border-2 border-dashed border-gray-300 bg-gray-25 rounded-lg"
+                    : ""
+                }`}>
+                  <p className="text-gray-400 text-sm font-medium">No leads in this stage</p>
+                  <p className="text-gray-300 text-xs mt-1">
+                    {dragState.isDragging ? "Drop lead here" : "Drag leads here to change stage"}
+                  </p>
                 </div>
               )}
             </div>
@@ -331,12 +386,8 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     <div className="h-full">
       <DragDropContext 
         onDragEnd={handleDragEnd}
-        onDragStart={(start) => {
-          console.log("Drag started:", start);
-        }}
-        onDragUpdate={(update) => {
-          console.log("Drag update:", update);
-        }}
+        onDragStart={handleDragStart}
+        onDragUpdate={handleDragUpdate}
       >
         {/* Desktop View */}
         <div className="hidden lg:flex gap-4 overflow-x-auto pb-4">

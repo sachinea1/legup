@@ -1,0 +1,31 @@
+Design and implement a drag‑and‑drop interaction that meets the following criteria:
+
+1. **Centralized Data Model**  
+   Ensure all draggable items are stored in a single shared state or context so that any view (List or Kanban) reads from the same source of truth and no duplicate fetches occur .
+
+2. **Drag Context & Event Handling**  
+   Wrap the interactive area in a drag context component that listens for drag start, update, and end events. On drop, detect the source and destination, then update the underlying data model accordingly with a single `onDragEnd` handler :contentReference[oaicite:1]{index=1}.
+
+3. **Defined Drop Zones**  
+   Mark each container (e.g., Kanban column) as a valid drop target. Show a visible placeholder slot where the item will land, and ensure the drop zone clearly highlights when an item hovers over it :contentReference[oaicite:2]{index=2}.
+
+4. **Draggable Items & Grab Handles**  
+   Render each item with a distinct grab handle area—such as an icon or raised edge—to indicate drag affordance. Change the cursor to `grab` on hover and `grabbing` while dragging .
+
+5. **Visual Feedback**  
+   Elevate the dragged item using a drop shadow or subtle scale, and animate its movement smoothly. Maintain a “ghost” of the original position until drop, and collapse large items into a summary view if needed to reduce clutter :contentReference[oaicite:4]{index=4} .
+
+6. **Accessibility & Keyboard Support**  
+   Provide keyboard sensors or fallback controls so users can reorder with arrow keys. Use appropriate ARIA roles (e.g., `listbox` for containers, `option` for items) and live regions to announce drag events to screen readers  :contentReference[oaicite:7]{index=7}.
+
+7. **Performance Optimization**  
+   Memoize the grouping of items by category/stage using `useMemo`, and wrap individual item components in `React.memo` to prevent unnecessary re‑renders during drag operations .
+
+8. **Responsive & Touch Support**  
+   Ensure the drag‑and‑drop works on both desktop and touch devices. For mobile, collapse multi‑column boards into a single swipeable column and increase touch target size to avoid frustration :contentReference[oaicite:9]{index=9}.
+
+9. **Fallback Controls**  
+   Offer non‑drag alternatives, such as a “Change Stage” dropdown or up/down buttons, for users or environments where drag‑and‑drop is not ideal :contentReference[oaicite:10]{index=10}.
+
+10. **Unobtrusive Animation**  
+    Use brief, subtle transitions to move items and reveal placeholders, keeping animations under 200 ms to avoid disrupting the user’s flow :contentReference[oaicite:11]{index=11}.
