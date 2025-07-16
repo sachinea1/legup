@@ -9,6 +9,7 @@ import { displayPhoneNumber } from "@/lib/phone";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
+import { LeadDetailModal } from "./lead-detail-modal";
 import { useState } from "react";
 
 interface KanbanViewProps {
@@ -21,6 +22,7 @@ interface KanbanViewProps {
 export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead }: KanbanViewProps) {
   const { toast } = useToast();
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   
   // Updated status order for the new columns
   const statusOrder = ["new", "contacted", "qualified", "appointment_set", "closed_won"];
@@ -144,6 +146,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
+            onClick={() => setSelectedLead(lead)}
             className={`mb-3 cursor-grab active:cursor-grabbing ${
               snapshot.isDragging ? "shadow-lg rotate-2 scale-105" : "hover:shadow-md"
             } transition-all duration-200`}
@@ -223,15 +226,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
                 </p>
               )}
 
-              {/* Stage Toggle Bar at bottom of card */}
-              <div className="mt-3 pt-2 border-t border-gray-100">
-                <StageToggleBar
-                  currentStatus={lead.status}
-                  onStatusChange={(status) => onUpdateLeadStatus(lead.id, status)}
-                  leadId={lead.id}
-                  isUpdating={isUpdating}
-                />
-              </div>
+
             </CardContent>
           </Card>
         )}
@@ -350,6 +345,19 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         }}
         leadName={deleteDialog.lead?.name}
         isDeleting={false}
+      />
+
+      {/* Lead Detail Modal */}
+      <LeadDetailModal
+        lead={selectedLead}
+        open={!!selectedLead}
+        onOpenChange={(open) => !open && setSelectedLead(null)}
+        onUpdateLeadStatus={onUpdateLeadStatus}
+        onDeleteLead={(id) => {
+          onDeleteLead(id);
+          setSelectedLead(null);
+        }}
+        isUpdating={isUpdating}
       />
     </div>
   );

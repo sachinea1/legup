@@ -123,15 +123,6 @@ export function ListView({
     </div>
   );
 
-  if (displayLeads.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-gray-500 text-lg">No leads found</div>
-        <div className="text-gray-400 text-sm mt-2">Try adjusting your filters or add a new lead</div>
-      </div>
-    );
-  }
-
   const handleDeleteConfirm = () => {
     if (deleteDialog.lead) {
       onDeleteLead(deleteDialog.lead.id);
@@ -141,17 +132,20 @@ export function ListView({
 
   return (
     <div className="space-y-4">
-      {/* Stage Filter Bar */}
+      {/* Stage Filter Bar - Arrow Style like Status Navigation */}
       <div className="flex items-center bg-gray-50 rounded-lg p-1 gap-0 mb-4">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setStageFilter(null)}
-          className={`relative h-8 px-3 text-xs font-medium transition-all ${
-            !stageFilter 
+          className={`
+            relative h-8 px-3 text-xs font-medium transition-all
+            ${!stageFilter 
               ? "bg-blue-600 text-white shadow-sm" 
               : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
-          } rounded-l-md`}
+            }
+            rounded-l-md
+          `}
         >
           All Stages
         </Button>
@@ -161,11 +155,20 @@ export function ListView({
             variant="ghost"
             size="sm"
             onClick={() => setStageFilter(stage.value)}
-            className={`relative h-8 px-3 text-xs font-medium transition-all ${
-              stageFilter === stage.value
+            className={`
+              relative h-8 px-3 text-xs font-medium transition-all
+              ${stageFilter === stage.value
                 ? "bg-blue-600 text-white shadow-sm" 
                 : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
-            } ${index === statusStages.length - 1 ? "rounded-r-md" : ""} -ml-1`}
+              }
+              ${index === statusStages.length - 1 ? "rounded-r-md" : ""}
+              ${index > 0 ? "-ml-1" : ""}
+            `}
+            style={{
+              clipPath: index === statusStages.length - 1 
+                ? "none" 
+                : "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%, 8px 50%)"
+            }}
           >
             {stage.label}
           </Button>
@@ -194,7 +197,13 @@ export function ListView({
 
       {/* Leads List */}
       <div className="space-y-3">
-        {displayLeads.map((lead) => {
+        {displayLeads.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-gray-500 text-lg">No leads found</div>
+            <div className="text-gray-400 text-sm mt-2">Try adjusting your filters or add a new lead</div>
+          </div>
+        ) : (
+          displayLeads.map((lead) => {
           const isExpanded = expandedLeads.has(lead.id);
           const statusTheme = getStatusTheme(lead.status);
           const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
@@ -339,7 +348,8 @@ export function ListView({
             )}
           </Card>
         );
-        })}
+        })
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}
