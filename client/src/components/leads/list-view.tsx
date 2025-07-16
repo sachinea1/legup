@@ -114,7 +114,7 @@ export function ListView({
     </div>
   );
 
-  if (filteredLeads.length === 0) {
+  if (displayLeads.length === 0) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-500 text-lg">No leads found</div>
