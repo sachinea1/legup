@@ -54,8 +54,11 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
 
+    console.log("Drag end result:", result);
+
     // If dropped outside a droppable area, show helpful message
     if (!destination) {
+      console.log("No destination - dropped outside");
       toast({
         title: "Invalid drop",
         description: "Please drop the lead card into a valid stage column",
@@ -66,6 +69,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
 
     // If dropped in the same position, no action needed
     if (destination.droppableId === source.droppableId && destination.index === source.index) {
+      console.log("Same position - no change needed");
       return;
     }
 
@@ -74,9 +78,12 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     const newStatus = destination.droppableId;
     const sourceStatus = source.droppableId;
     
+    console.log("Moving lead:", leadId, "from", sourceStatus, "to", newStatus);
+    
     // Find the lead being moved for better feedback
     const lead = leads.find(l => l.id === leadId);
     if (!lead) {
+      console.log("Lead not found:", leadId);
       toast({
         title: "Error",
         description: "Lead not found",
@@ -114,20 +121,28 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         draggableId={`lead-${lead.id}`} 
         index={index} 
         isDragDisabled={isUpdating}
+        type="LEAD"
       >
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.draggableProps}
             {...provided.dragHandleProps}
-            className={`mb-3 cursor-grab active:cursor-grabbing ${
+            className={`mb-3 select-none ${
               snapshot.isDragging 
-                ? "scale-105 rotate-1 z-50" 
-                : ""
+                ? "scale-105 rotate-1 z-50 cursor-grabbing opacity-90" 
+                : "cursor-grab"
             } transition-all duration-200`}
+            onMouseDown={(e) => {
+              console.log("Mouse down on card:", lead.id);
+            }}
           >
             <Card
-              onClick={() => setSelectedLead(lead)}
+              onClick={(e) => {
+                if (!snapshot.isDragging) {
+                  setSelectedLead(lead);
+                }
+              }}
               className={`${
                 snapshot.isDragging 
                   ? "shadow-xl bg-blue-50 border-blue-200" 
@@ -282,7 +297,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         </div>
 
         {/* Droppable Column */}
-        <Droppable droppableId={status}>
+        <Droppable droppableId={status} type="LEAD">
           {(provided, snapshot) => (
             <div
               ref={provided.innerRef}
@@ -294,7 +309,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
               }`}
             >
               {columnLeads.map((lead, index) => (
-                <LeadCard key={lead.id} lead={lead} index={index} />
+                <LeadCard key={`lead-${lead.id}`} lead={lead} index={index} />
               ))}
               {provided.placeholder}
               
@@ -314,7 +329,15 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
 
   return (
     <div className="h-full">
-      <DragDropContext onDragEnd={handleDragEnd}>
+      <DragDropContext 
+        onDragEnd={handleDragEnd}
+        onDragStart={(start) => {
+          console.log("Drag started:", start);
+        }}
+        onDragUpdate={(update) => {
+          console.log("Drag update:", update);
+        }}
+      >
         {/* Desktop View */}
         <div className="hidden lg:flex gap-4 overflow-x-auto pb-4">
           {statusOrder.map(status => (
