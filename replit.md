@@ -43,8 +43,11 @@ Preferred communication style: Simple, everyday language.
 ### Lead Management System
 - **Automated Lead Capture**: Customer widget for lead intake with validation
 - **AI-powered Qualification**: OpenAI integration for lead scoring and prioritization
-- **Status Tracking**: Comprehensive lead lifecycle management (new, contacted, booked, completed, cancelled)
+- **Dual View Modes**: List view with detailed cards and Kanban board with drag-and-drop functionality
+- **Status Tracking**: Comprehensive lead lifecycle management (new, contacted, qualified, appointment_set, closed_won)
 - **Follow-up Automation**: Scheduled SMS follow-ups using cron jobs
+- **Drag-and-Drop Kanban**: React Beautiful DND implementation with visual feedback and optimistic updates
+- **Functional Editing**: Complete CRUD operations with modal edit forms for lead data management
 
 ### Organization Management
 - **Multi-tenant Architecture**: Complete data isolation between organizations

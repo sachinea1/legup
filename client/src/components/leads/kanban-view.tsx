@@ -2,7 +2,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautif
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Phone, Mail, MapPin, Trash2, Edit, GripVertical } from "lucide-react";
+import { Phone, Mail, MapPin, Trash2, Edit } from "lucide-react";
 import type { Lead } from "@shared/schema";
 import { getStatusTheme, getServiceTypeTheme } from "@/lib/theme";
 import { displayPhoneNumber } from "@/lib/phone";
@@ -104,59 +104,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     onUpdateLeadStatus(leadId, newStatus);
   };
 
-  // Stage Toggle Bar Component for Kanban cards
-  const StageToggleBar = ({ 
-    currentStatus, 
-    onStatusChange, 
-    leadId, 
-    isUpdating 
-  }: { 
-    currentStatus: string; 
-    onStatusChange: (status: string) => void;
-    leadId: number;
-    isUpdating: boolean;
-  }) => {
-    const stages = ["new", "contacted", "qualified", "appointment_set", "closed_won"];
-    const stageLabels = {
-      new: "New",
-      contacted: "Contacted", 
-      qualified: "Qualified",
-      appointment_set: "Apt Set",
-      closed_won: "Done"
-    };
-
-    return (
-      <div className="flex items-center gap-1">
-        {stages.map((stage) => {
-          const isActive = currentStatus === stage;
-          const isCompleted = stages.indexOf(currentStatus) > stages.indexOf(stage);
-          
-          return (
-            <Button
-              key={stage}
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                onStatusChange(stage);
-              }}
-              disabled={isUpdating}
-              className={`h-6 px-2 text-xs font-medium transition-all ${
-                isActive 
-                  ? "bg-blue-600 text-white" 
-                  : isCompleted
-                  ? "bg-green-100 text-green-700 hover:bg-green-200"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-              aria-label={`Set stage to ${stageLabels[stage as keyof typeof stageLabels]}`}
-            >
-              {stageLabels[stage as keyof typeof stageLabels]}
-            </Button>
-          );
-        })}
-      </div>
-    );
-  };
+  // Simplified lead card without stage toggle buttons
 
   const LeadCard = ({ lead, index }: { lead: Lead; index: number }) => {
     const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
@@ -168,144 +116,136 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         isDragDisabled={isUpdating}
       >
         {(provided, snapshot) => (
-          <Card
+          <div
             ref={provided.innerRef}
             {...provided.draggableProps}
-            onClick={() => setSelectedLead(lead)}
-            className={`mb-3 cursor-pointer ${
+            {...provided.dragHandleProps}
+            className={`mb-3 cursor-grab active:cursor-grabbing ${
               snapshot.isDragging 
-                ? "shadow-xl rotate-1 scale-105 bg-blue-50 border-blue-200" 
-                : "hover:shadow-md hover:bg-gray-50"
-            } transition-all duration-200 border-l-4 ${
-              lead.priority === "urgent" ? "border-l-red-500" :
-              lead.priority === "high" ? "border-l-orange-500" :
-              "border-l-blue-500"
-            }`}
-            role="button"
-            tabIndex={0}
-            aria-label={`Lead card for ${lead.name}. Click to view details, drag to move between stages.`}
+                ? "scale-105 rotate-1 z-50" 
+                : ""
+            } transition-all duration-200`}
           >
-            <CardContent className="p-3">
-              {/* Drag handle and header */}
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div 
-                    {...provided.dragHandleProps}
-                    className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
-                    aria-label="Drag handle"
-                  >
-                    <GripVertical className="w-4 h-4" />
-                  </div>
+            <Card
+              onClick={() => setSelectedLead(lead)}
+              className={`${
+                snapshot.isDragging 
+                  ? "shadow-xl bg-blue-50 border-blue-200" 
+                  : "hover:shadow-md hover:bg-gray-50"
+              } border-l-4 ${
+                lead.priority === "urgent" ? "border-l-red-500" :
+                lead.priority === "high" ? "border-l-orange-500" :
+                "border-l-blue-500"
+              }`}
+              role="button"
+              tabIndex={0}
+              aria-label={`Lead card for ${lead.name}. Drag to move between stages or click to view details.`}
+            >
+              <CardContent className="p-3">
+                {/* Header with service type and action buttons */}
+                <div className="flex items-start justify-between mb-2">
                   <Badge variant="outline" className={`${serviceTheme.color} text-xs`}>
                     {serviceTheme.label}
                   </Badge>
-                </div>
-                <div className="flex items-center gap-1">
-                  {onEditLead && (
+                  <div className="flex items-center gap-1">
+                    {onEditLead && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditLead(lead);
+                        }}
+                        className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+                        aria-label="Edit lead"
+                      >
+                        <Edit className="w-3 h-3" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onEditLead(lead);
+                        setDeleteDialog({open: true, lead});
                       }}
-                      className="h-6 w-6 p-0 text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-                      aria-label="Edit lead"
+                      className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                      aria-label="Delete lead"
                     >
-                      <Edit className="w-3 h-3" />
+                      <Trash2 className="w-3 h-3" />
                     </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteDialog({open: true, lead});
-                    }}
-                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                    aria-label="Delete lead"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Lead name and creation date */}
-              <div className="mb-2">
-                <h4 className="font-semibold text-sm text-gray-900 capitalize truncate">
-                  {lead.name}
-                </h4>
-                <p className="text-xs text-gray-500">
-                  {lead.createdAt ? format(new Date(lead.createdAt), "MMM d, h:mm a") : "No date"}
-                </p>
-              </div>
+                {/* Lead name and creation date */}
+                <div className="mb-2">
+                  <h4 className="font-semibold text-sm text-gray-900 capitalize truncate">
+                    {lead.name}
+                  </h4>
+                  <p className="text-xs text-gray-500">
+                    {lead.createdAt ? format(new Date(lead.createdAt), "MMM d, h:mm a") : "No date"}
+                  </p>
+                </div>
 
-              {/* Contact info */}
-              <div className="space-y-1 mb-3">
-                <a 
-                  href={`tel:${lead.phone}`}
-                  className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Phone className="w-3 h-3" />
-                  {displayPhoneNumber(lead.phone)}
-                </a>
-                {lead.email && (
+                {/* Contact info */}
+                <div className="space-y-1 mb-3">
                   <a 
-                    href={`mailto:${lead.email}`}
-                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                    href={`tel:${lead.phone}`}
+                    className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <Mail className="w-3 h-3" />
-                    <span className="truncate">{lead.email}</span>
+                    <Phone className="w-3 h-3" />
+                    {displayPhoneNumber(lead.phone)}
                   </a>
-                )}
-                {lead.address && (
-                  <p className="text-xs text-gray-500 flex items-start gap-1">
-                    <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                    <span className="truncate">{lead.address}</span>
+                  {lead.email && (
+                    <a 
+                      href={`mailto:${lead.email}`}
+                      className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Mail className="w-3 h-3" />
+                      <span className="truncate">{lead.email}</span>
+                    </a>
+                  )}
+                  {lead.address && (
+                    <p className="text-xs text-gray-500 flex items-start gap-1">
+                      <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      <span className="truncate">{lead.address}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Service details */}
+                {lead.rooms && (
+                  <p className="text-xs text-gray-600 mb-2">
+                    Rooms: {lead.rooms}
                   </p>
                 )}
-              </div>
 
-              {/* Service details */}
-              {lead.rooms && (
-                <p className="text-xs text-gray-600 mb-2">
-                  Rooms: {lead.rooms}
-                </p>
-              )}
+                {/* Estimated cost */}
+                {lead.estimatedCost && (
+                  <p className="text-xs font-medium text-green-600 mb-2">
+                    Est. Cost: ${lead.estimatedCost}
+                  </p>
+                )}
 
-              {/* Estimated value */}
-              {lead.estimatedCost && (
-                <p className="text-xs font-medium text-green-600 mb-2">
-                  Est. Cost: ${lead.estimatedCost}
-                </p>
-              )}
+                {/* Priority badge */}
+                {lead.priority && lead.priority !== "normal" && (
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${
+                      lead.priority === "urgent" ? "border-red-500 text-red-600 bg-red-50" :
+                      lead.priority === "high" ? "border-orange-500 text-orange-600 bg-orange-50" :
+                      "border-blue-500 text-blue-600 bg-blue-50"
+                    }`}
+                  >
+                    {lead.priority}
+                  </Badge>
+                )}
 
-              {/* Priority badge */}
-              {lead.priority && lead.priority !== "normal" && (
-                <Badge 
-                  variant="outline" 
-                  className={`text-xs mb-2 ${
-                    lead.priority === "urgent" ? "border-red-500 text-red-600 bg-red-50" :
-                    lead.priority === "high" ? "border-orange-500 text-orange-600 bg-orange-50" :
-                    "border-blue-500 text-blue-600 bg-blue-50"
-                  }`}
-                >
-                  {lead.priority}
-                </Badge>
-              )}
-
-              {/* Stage Toggle Bar for quick status changes */}
-              <StageToggleBar
-                currentStatus={lead.status || "new"}
-                onStatusChange={(status) => onUpdateLeadStatus(lead.id, status)}
-                leadId={lead.id}
-                isUpdating={isUpdating}
-              />
-
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </Draggable>
     );

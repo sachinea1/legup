@@ -1,0 +1,205 @@
+You are tasked with fully implementing a robust Kanban drag-and-drop experience in our Lead Management page (client/src/pages/leads.tsx) using React/Next.js and react-beautiful-dnd. Follow these step-by-step instructions to build, document, and test the feature. All code should be commented to explain purpose and usage.
+
+--------------------------------------------------------------------------------
+1. Install and Configure Dependencies
+--------------------------------------------------------------------------------
+1.1. In your project root, install react-beautiful-dnd:
+     npm install react-beautiful-dnd
+
+1.2. Verify installation in package.json under dependencies.
+
+--------------------------------------------------------------------------------
+2. Create or Update the useLeads Context/Hook
+--------------------------------------------------------------------------------
+2.1. Open or create src/hooks/useLeads.ts:
+     - Import React, createContext, useContext, useState, useEffect, useMemo.
+     - Fetch leads once via your API (e.g. Supabase query) into state `leads`.
+     - Provide `updateLead(id: string, newStage: string)` to update a lead’s stage in the backend and local state.
+     - Memoize grouping by stage:
+
+       ```ts
+       const leadsByStage = useMemo(() => {
+         return STAGES.reduce((acc, stage) => {
+           acc[stage] = leads.filter(l => l.stage === stage);
+           return acc;
+         }, {} as Record<string, Lead[]>)
+       }, [leads]);
+       ```
+
+2.2. Export `useLeads` hook and wrap your app in `LeadsProvider` in _app.tsx.
+
+--------------------------------------------------------------------------------
+3. TopNav and View Toggle
+--------------------------------------------------------------------------------
+3.1. In client/src/components/TopNav.tsx:
+     - Render two tabs: “List View” and “Kanban View.”
+     - On click, call `setViewMode('list')` or `setViewMode('kanban')`.
+     - Highlight the active tab via Tailwind CSS:  
+       `className={viewMode==='kanban'? 'bg-blue-600 text-white' : 'bg-white text-blue-600'}`.
+
+3.2. Add two buttons to the left of tabs:
+     - “Filters” (opens modal in Kanban View)  
+     - “Add Lead” (opens lead creation form)
+
+--------------------------------------------------------------------------------
+4. List View Component
+--------------------------------------------------------------------------------
+4.1. In client/src/components/ListView.tsx:
+     - Accept props `{ leads: Lead[], updateLead, filters }`.
+     - Render each lead with:
+       • Name, contact info  
+       • Stage toggle bar (buttons for each STAGE, no header)  
+       • High Priority badge: a toggle button that stays red when active and gray when off.  
+     - Apply filters: if `filters.highPriority` is true, only show leads with `lead.priority==='high'`.  
+     - Sort by stage order, then priority, then creation date.
+
+4.2. Ensure styling is clear and responsive.
+
+--------------------------------------------------------------------------------
+5. Kanban View Component
+--------------------------------------------------------------------------------
+5.1. In client/src/components/KanbanView.tsx:
+     ```jsx
+     import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+     import React from 'react';
+
+     const STAGES = ['New','Contacted','Qualified','Appointment Set','Completed'];
+
+     function KanbanView({ leadsByStage, updateLead, openFilters, openAddLead }) {
+       const handleDragEnd = (result) => {
+         const { source, destination, draggableId } = result;
+         if (!destination) return;
+         if (source.droppableId===destination.droppableId && source.index===destination.index) return;
+         updateLead(draggableId, destination.droppableId);
+       };
+
+       return (
+         <div className="flex flex-col h-full">
+           <div className="flex space-x-2 p-2">
+             <button onClick={openFilters} className="btn">Filters</button>
+             <button onClick={openAddLead} className="btn-primary">Add Lead</button>
+           </div>
+           <DragDropContext onDragEnd={handleDragEnd}>
+             <div className="flex overflow-x-auto space-x-4 p-2">
+               {STAGES.map(stage => (
+                 <Droppable key={stage} droppableId={stage}>
+                   {(provided) => (
+                     <div
+                       ref={provided.innerRef}
+                       {...provided.droppableProps}
+                       className="w-64 bg-gray-100 rounded p-2 flex-shrink-0"
+                     >
+                       <h3 className="font-bold mb-2">{stage} ({leadsByStage[stage].length})</h3>
+                       {leadsByStage[stage].map((lead, index) => (
+                         <Draggable key={lead.id} draggableId={lead.id} index={index}>
+                           {(prov, snap) => (
+                             <div
+                               ref={prov.innerRef}
+                               {...prov.draggableProps}
+                               {...prov.dragHandleProps}
+                               className={`bg-white p-4 mb-2 rounded shadow ${
+                                 snap.isDragging ? 'bg-blue-50 shadow-lg' : ''
+                               }`}
+                             >
+                               <div className="font-semibold">{lead.name}</div>
+                               <div className="text-sm text-gray-600">{lead.contact}</div>
+                               <div className="mt-2 space-x-1">
+                                 {STAGES.map(s => (
+                                   <button
+                                     key={s}
+                                     onClick={()=>updateLead(lead.id, s)}
+                                     className={`px-2 py-1 text-xs rounded ${
+                                       lead.stage===s ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                                     }`}
+                                   >{s}</button>
+                                 ))}
+                               </div>
+                             </div>
+                           )}
+                         </Draggable>
+                       ))}
+                       {provided.placeholder}
+                     </div>
+                   )}
+                 </Droppable>
+               ))}
+             </div>
+           </DragDropContext>
+         </div>
+       );
+     }
+
+     export default KanbanView;
+     ```
+
+5.2. Styling:
+     ```css
+     .btn { @apply px-4 py-2 border rounded; }
+     .btn-primary { @apply px-4 py-2 bg-blue-600 text-white rounded; }
+     ```
+
+--------------------------------------------------------------------------------
+6. Filters Modal (Kanban)
+--------------------------------------------------------------------------------
+6.1. Create client/src/components/FiltersModal.tsx:
+     - Render a modal with:
+       • High Priority toggle  
+       • Date range picker  
+       • Assigned cleaner dropdown  
+     - On apply, update `filters` in context.
+
+6.2. Wire openFilters / close logic in TopNav and KanbanView.
+
+--------------------------------------------------------------------------------
+7. Shared Filters & State Sync
+--------------------------------------------------------------------------------
+7.1. In useLeads context:
+     - Add `filters` state: `{ highPriority: boolean, dateRange: {...}, assignedCleaner: string }`.
+     - Provide `setFilters`.
+
+7.2. In ListView and FiltersModal:
+     - Consume `filters` and `setFilters` to filter leads.
+
+7.3. In KanbanView:
+     - FiltersModal writes to same `filters` so Kanban board reflects filtering.
+
+--------------------------------------------------------------------------------
+8. Testing and Validation
+--------------------------------------------------------------------------------
+8.1. Verify in List View:
+     - “High Priority” toggle persists, sorts leads correctly, and stays styled.  
+     - Stage buttons on each lead change stage when clicked.  
+
+8.2. Verify in Kanban View:
+     - Filters button opens modal and filters board.  
+     - Add Lead button opens creation form.  
+     - Dragging a card to a new column updates its stage (check network/API call).  
+     - Toast appears on successful move.  
+
+8.3. Ensure toggling between List and Kanban:
+     - Doesn’t refetch data, preserves filters, and maintains UI state.
+
+8.4. Test responsiveness:
+     - Mobile List accordion view.  
+     - Swipeable single-column Kanban.
+
+--------------------------------------------------------------------------------
+9. Documentation
+--------------------------------------------------------------------------------
+9.1. Comment each major block:
+     ```js
+     // DragDropContext wraps the board to handle drag events
+     // Droppable defines each column as a valid drop zone
+     // Draggable makes each card movable
+     ```
+
+9.2. Update README with:
+     - Installation steps  
+     - How to run locally  
+     - Overview of lead pipeline features  
+
+--------------------------------------------------------------------------------
+Completion Criteria:
+- Fully functional, accessible drag‑and‑drop Kanban with stage toggles
+- Shared filters and data layer between views
+- Clear, documented code ready for handoff or further iteration
