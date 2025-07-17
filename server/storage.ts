@@ -46,6 +46,7 @@ export interface IStorage {
   // SMS operations
   createSmsMessage(message: InsertSmsMessage): Promise<SmsMessage>;
   getSmsMessages(phone?: string, limit?: number): Promise<SmsMessage[]>;
+  getSmsMessagesByOrganization(organizationId: number, phone?: string): Promise<SmsMessage[]>;
   getUnprocessedSms(): Promise<SmsMessage[]>;
   markSmsProcessed(id: number, aiResponse?: string, intent?: string): Promise<void>;
   

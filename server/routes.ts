@@ -879,35 +879,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send SMS message from leads page
-  app.post("/api/messages", authenticateToken, async (req, res) => {
-    try {
-      const { phone, message } = req.body;
-      
-      // Find the lead by phone number for authenticated user
-      const leads = await storage.getLeads(req.user!.id);
-      const lead = leads.find(l => l.phone === phone);
-      
-      if (!lead) {
-        return res.status(404).json({ error: "Lead not found for this phone number" });
-      }
 
-      // Send SMS via Twilio
-      const messageSid = await twilioService.sendSms(phone, message);
-      
-      // Store the outbound message in database
-      const smsMessage = await storage.createSmsMessage({
-        leadId: lead.id,
-        phone: phone,
-        direction: "outbound",
-        content: message,
-        twilioSid: messageSid || undefined,
-        status: "sent",
-      });
 
-      res.json({ success: true, message: smsMessage });
-    } catch (error: any) {
-      console.error("Failed to send message:", error);
       
       // Provide specific error messages for different failure types
       if (error.message?.includes("needs to be verified")) {
@@ -1001,35 +974,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get SMS messages for a phone number
-  app.get("/api/messages", async (req, res) => {
+  // Get SMS messages (organization-aware)
+  app.get("/api/messages", authenticateToken, async (req, res) => {
     try {
       const { phone } = req.query;
-      const messages = await storage.getSmsMessages(phone as string);
+      
+      // Get user with organization context
+      const user = await storage.getUser(req.user!.id);
+      if (!user?.organizationId) {
+        return res.status(403).json({ error: "User must belong to an organization" });
+      }
+
+      // Get messages for organization, optionally filtered by phone
+      const messages = await storage.getSmsMessagesByOrganization(
+        user.organizationId, 
+        phone as string | undefined
+      );
+      
       res.json(messages);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Fetch messages error:", error);
       res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
 
-  // Send SMS message
-  app.post("/api/messages", async (req, res) => {
+  // Send SMS message (organization-aware)
+  app.post("/api/messages", authenticateToken, async (req, res) => {
     try {
-      const { phone, message, leadId } = req.body;
+      const { phone, message } = req.body;
       
-      await twilioService.sendSms(phone, message);
+      if (!phone || !message) {
+        return res.status(400).json({ error: "Phone and message are required" });
+      }
+
+      // Get user with organization context
+      const user = await storage.getUser(req.user!.id);
+      if (!user?.organizationId) {
+        return res.status(403).json({ error: "User must belong to an organization" });
+      }
+
+      // Find lead by phone number within user's organization
+      const leads = await storage.getLeads(req.user!.id);
+      const lead = leads.find(l => l.phone === phone);
       
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found for this phone number" });
+      }
+
+      // Check for @schedule command and process it
+      let processedMessage = message;
+      let shouldCreateAppointment = false;
+      let appointmentData = null;
+
+      if (message.includes('@schedule')) {
+        const scheduleResult = await automationService.processScheduleCommand(message, lead.id);
+        if (scheduleResult.shouldSchedule) {
+          shouldCreateAppointment = true;
+          appointmentData = scheduleResult.appointmentData;
+          processedMessage = scheduleResult.responseMessage || message;
+        }
+      }
+
+      // Send SMS via Twilio
+      const messageSid = await twilioService.sendSms(phone, processedMessage);
+      
+      // Store the outbound message in database
       const smsMessage = await storage.createSmsMessage({
-        leadId: leadId || null,
-        phone,
+        organizationId: user.organizationId,
+        leadId: lead.id,
+        phone: phone,
         direction: "outbound",
-        content: message,
-        status: "sent",
+        content: processedMessage,
+        twilioSid: messageSid || undefined,
+        status: messageSid ? "sent" : "failed",
       });
-      
+
+      // Create appointment if @schedule command was used
+      if (shouldCreateAppointment && appointmentData) {
+        await storage.createAppointment({
+          leadId: lead.id,
+          organizationId: user.organizationId,
+          scheduledDate: appointmentData.scheduledDate,
+          duration: appointmentData.duration || 120, // Default 2 hours
+          serviceType: appointmentData.serviceType || lead.serviceType,
+          notes: `Auto-scheduled via @schedule command from SMS`,
+          status: "confirmed"
+        });
+      }
+
       res.json(smsMessage);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to send message" });
+    } catch (error: any) {
+      console.error("Send SMS error:", error);
+      res.status(500).json({ error: error.message || "Failed to send message" });
     }
   });
 
