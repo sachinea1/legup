@@ -78,16 +78,26 @@ export function ScheduleJobModal({
     }
   }, [lead, appointments]);
 
+  // Check for existing appointment for this lead
+  const existingAppointment = appointments.find(apt => apt.leadId === lead?.id);
+
   const scheduleJobMutation = useMutation({
     mutationFn: async (appointmentData: any) => {
-      const response = await apiRequest("POST", "/api/appointments", appointmentData);
-      return response.json();
+      // If existing appointment, update it; otherwise create new one
+      if (existingAppointment) {
+        const response = await apiRequest("PATCH", `/api/appointments/${existingAppointment.id}`, appointmentData);
+        return response.json();
+      } else {
+        const response = await apiRequest("POST", "/api/appointments", appointmentData);
+        return response.json();
+      }
     },
     onSuccess: (appointment) => {
       queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       toast({
-        title: "Job Scheduled",
-        description: `Job scheduled for ${format(selectedDate!, 'MMM d, yyyy')} at ${selectedTime}`,
+        title: existingAppointment ? "Job Updated" : "Job Scheduled",
+        description: `Job ${existingAppointment ? 'updated' : 'scheduled'} for ${format(selectedDate!, 'MMM d, yyyy')} at ${selectedTime}`,
       });
       onOpenChange(false);
       // Reset form
@@ -117,17 +127,36 @@ export function ScheduleJobModal({
       return;
     }
 
-    // Create the appointment
+    // Check for staff conflicts
+    const scheduledDateTime = new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${convertTo24Hour(selectedTime)}`);
+    const conflictingAppointment = appointments.find(apt => 
+      apt.id !== existingAppointment?.id && // Don't count current appointment as conflict
+      apt.assignedCleaner === assignedStaff &&
+      new Date(apt.scheduledDate).toDateString() === scheduledDateTime.toDateString() &&
+      Math.abs(new Date(apt.scheduledDate).getTime() - scheduledDateTime.getTime()) < (parseInt(duration) * 60000) // Check for time overlap
+    );
+
+    if (conflictingAppointment) {
+      toast({
+        title: "Staff Conflict",
+        description: `${mockTeamMembers.find(m => m.id.toString() === assignedStaff)?.name} is already assigned to another job at this time.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create or update the appointment
     const appointmentData = {
       leadId: lead.id,
       customerName: lead.name,
       customerPhone: lead.phone,
       serviceType: lead.serviceType || 'standard',
       address: lead.address || '',
-      scheduledDate: new Date(`${format(selectedDate, 'yyyy-MM-dd')}T${convertTo24Hour(selectedTime)}`),
+      scheduledDate: scheduledDateTime,
       duration: parseInt(duration),
       status: 'pending',
-      notes
+      notes,
+      assignedCleaner: assignedStaff
     };
 
     scheduleJobMutation.mutate(appointmentData);

@@ -20,7 +20,7 @@ import {
   Phone,
   GripVertical
 } from "lucide-react";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, isSameDay, parseISO, isToday } from "date-fns";
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, addWeeks, subWeeks, addDays, subDays, isSameDay, parseISO, isToday } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getQueryFn, apiRequest } from "@/lib/queryClient";
 import { DragDropContext, Droppable, Draggable, DropResult } from "react-beautiful-dnd";
@@ -117,10 +117,15 @@ export default function Schedule() {
   // Drag and drop mutation
   const rescheduleAppointmentMutation = useMutation({
     mutationFn: async ({ appointmentId, newDate, newStaff }: { appointmentId: number, newDate: Date, newStaff?: string }) => {
-      const response = await apiRequest("PATCH", `/api/appointments/${appointmentId}`, {
-        scheduledDate: newDate,
-        assignedCleaner: newStaff
-      });
+      const updateData: any = {
+        scheduledDate: newDate.toISOString()
+      };
+      
+      if (newStaff) {
+        updateData.assignedCleaner = newStaff;
+      }
+      
+      const response = await apiRequest("PATCH", `/api/appointments/${appointmentId}`, updateData);
       return response.json();
     },
     onSuccess: () => {
@@ -156,6 +161,23 @@ export default function Schedule() {
       const newDate = new Date(destValue);
       const currentTime = new Date(appointment.scheduledDate);
       newDate.setHours(currentTime.getHours(), currentTime.getMinutes());
+      
+      // Check for staff conflicts on the new date
+      const conflictingAppointment = appointments.find(apt => 
+        apt.id !== appointmentId &&
+        apt.assignedCleaner === appointment.assignedCleaner &&
+        new Date(apt.scheduledDate).toDateString() === newDate.toDateString() &&
+        Math.abs(new Date(apt.scheduledDate).getTime() - newDate.getTime()) < (appointment.duration * 60000)
+      );
+
+      if (conflictingAppointment) {
+        toast({
+          title: "Staff Conflict",
+          description: "This cleaner is already assigned to another job at this time.",
+          variant: "destructive",
+        });
+        return;
+      }
       
       rescheduleAppointmentMutation.mutate({
         appointmentId,
@@ -304,13 +326,13 @@ export default function Schedule() {
         </CardContent>
       </Card>
 
-      {/* Week Navigation */}
+      {/* Date Navigation */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={goToPreviousWeek}>
+          <Button variant="outline" size="sm" onClick={viewMode === "week" ? goToPreviousWeek : () => setCurrentDate(subDays(currentDate, 1))}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={goToNextWeek}>
+          <Button variant="outline" size="sm" onClick={viewMode === "week" ? goToNextWeek : () => setCurrentDate(addDays(currentDate, 1))}>
             <ChevronRight className="w-4 h-4" />
           </Button>
           <Button variant="outline" size="sm" onClick={goToToday}>
@@ -318,46 +340,51 @@ export default function Schedule() {
           </Button>
         </div>
         <h2 className="text-lg font-semibold">
-          {format(weekStart, "MMM d")} - {format(weekEnd, "MMM d, yyyy")}
+          {viewMode === "week" ? (
+            `${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`
+          ) : (
+            format(currentDate, "EEEE, MMMM d, yyyy")
+          )}
         </h2>
       </div>
 
       {/* Calendar Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
-        {weekDays.map((day) => {
-          const dayAppointments = getAppointmentsForDay(day);
-          const isCurrentDay = isToday(day);
-          const dayId = format(day, 'yyyy-MM-dd');
-          
-          return (
-            <Droppable key={dayId} droppableId={`day-${dayId}`}>
-              {(provided, snapshot) => (
-                <Card 
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`min-h-[400px] ${isCurrentDay ? 'ring-2 ring-blue-500' : ''} ${
-                    snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
-                  }`}
-                >
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center justify-between">
-                      <span className={isCurrentDay ? 'text-blue-600' : ''}>
-                        {format(day, "EEE")}
-                      </span>
-                      <span className={`text-lg ${isCurrentDay ? 'text-blue-600 font-bold' : ''}`}>
-                        {format(day, "d")}
-                      </span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {dayAppointments.length === 0 ? (
-                      <div className="text-center text-gray-500 text-sm py-8">
-                        No appointments
-                      </div>
-                    ) : (
-                      dayAppointments.map((appointment: Appointment, index) => {
-                        const assignedStaffMember = mockStaff.find(s => s.id.toString() === appointment.assignedCleaner);
-                        const serviceTheme = getAppointmentTheme(appointment.serviceType);
+      {viewMode === "week" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
+          {weekDays.map((day) => {
+            const dayAppointments = getAppointmentsForDay(day);
+            const isCurrentDay = isToday(day);
+            const dayId = format(day, 'yyyy-MM-dd');
+            
+            return (
+              <Droppable key={dayId} droppableId={`day-${dayId}`}>
+                {(provided, snapshot) => (
+                  <Card 
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className={`min-h-[400px] ${isCurrentDay ? 'ring-2 ring-blue-500' : ''} ${
+                      snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
+                    }`}
+                  >
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium flex items-center justify-between">
+                        <span className={isCurrentDay ? 'text-blue-600' : ''}>
+                          {format(day, "EEE")}
+                        </span>
+                        <span className={`text-lg ${isCurrentDay ? 'text-blue-600 font-bold' : ''}`}>
+                          {format(day, "d")}
+                        </span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {dayAppointments.length === 0 ? (
+                        <div className="text-center text-gray-500 text-sm py-8">
+                          No appointments
+                        </div>
+                      ) : (
+                        dayAppointments.map((appointment: Appointment, index) => {
+                          const assignedStaffMember = mockStaff.find(s => s.id.toString() === appointment.assignedCleaner);
+                          const serviceTheme = getAppointmentTheme(appointment.serviceType);
                         
                         return (
                           <Draggable 
@@ -431,15 +458,89 @@ export default function Schedule() {
               )}
             </Droppable>
           );
-        })}
-      </div>
+          })}
+        </div>
+      ) : (
+        /* Day View */
+        <Card>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              {timeSlots.map((time) => {
+                const timeAppointments = getAppointmentsForDay(currentDate).filter(apt => {
+                  const aptTime = getAppointmentTime(apt);
+                  return aptTime === time;
+                });
+                
+                return (
+                  <Droppable key={time} droppableId={`time-${time}`}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`border border-gray-200 rounded-lg p-3 min-h-[60px] flex items-center ${
+                          snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
+                        }`}
+                      >
+                        <div className="w-20 text-sm font-medium text-gray-600 mr-4">
+                          {time}
+                        </div>
+                        <div className="flex-1 flex gap-2 flex-wrap">
+                          {timeAppointments.map((appointment: Appointment, index) => {
+                            const theme = getAppointmentTheme(appointment.serviceType);
+                            const staffMember = mockStaff.find(s => s.id.toString() === appointment.assignedCleaner);
+                            return (
+                              <Draggable
+                                key={appointment.id}
+                                draggableId={appointment.id.toString()}
+                                index={index}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    className={`p-3 rounded-lg border ${theme} cursor-move transition-all min-w-[250px] ${
+                                      snapshot.isDragging ? 'rotate-2 shadow-lg' : 'hover:shadow-md'
+                                    }`}
+                                  >
+                                    <div className="font-medium">{appointment.customerName}</div>
+                                    <div className="text-sm opacity-80 truncate">
+                                      {appointment.address}
+                                    </div>
+                                    <div className="text-sm opacity-80">
+                                      {appointment.customerPhone}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Avatar className="w-5 h-5">
+                                        <AvatarFallback className={`${staffMember?.color} text-white text-xs`}>
+                                          {staffMember?.avatar}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-xs">{staffMember?.name}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+                        </div>
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* New Job Modal */}
-        <ScheduleJobModal
-          open={showNewJobModal}
-          onOpenChange={setShowNewJobModal}
-          lead={selectedLead}
-        />
+      {/* New Job Modal */}
+      <ScheduleJobModal
+        open={showNewJobModal}
+        onOpenChange={setShowNewJobModal}
+        lead={selectedLead}
+      />
       </div>
     </DragDropContext>
   );
