@@ -55,8 +55,8 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     {
       icon: MessageSquare,
       label: "Messages",
-      href: "#",
-      active: false,
+      href: "/messages",
+      active: location === "/messages",
       badge: "3",
       badgeVariant: "bg-green-500 text-white" as const,
     },

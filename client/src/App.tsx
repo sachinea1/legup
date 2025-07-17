@@ -8,6 +8,7 @@ import { ProtectedRoute } from "@/lib/protected-route";
 import { AuthProvider } from "@/hooks/use-auth";
 import Dashboard from "@/pages/dashboard";
 import Leads from "@/pages/leads";
+import MessagesPage from "@/pages/messages";
 import Settings from "@/pages/settings";
 import Widget from "@/pages/widget";
 import AuthPage from "@/pages/auth";
@@ -39,6 +40,7 @@ function Router() {
         <ProtectedRoute path="/" component={Dashboard} />
         <ProtectedRoute path="/dashboard" component={Dashboard} />
         <ProtectedRoute path="/leads" component={Leads} />
+        <ProtectedRoute path="/messages" component={MessagesPage} />
         <ProtectedRoute path="/schedule" component={SchedulePage} />
         <ProtectedRoute path="/settings" component={Settings} />
         <Route component={NotFound} />

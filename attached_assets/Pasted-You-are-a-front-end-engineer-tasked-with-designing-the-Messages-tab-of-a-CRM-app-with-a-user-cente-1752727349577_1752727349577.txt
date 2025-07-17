@@ -1,0 +1,33 @@
+You are a front-end engineer tasked with designing the “Messages” tab of a CRM app with a user-centered approach. You may choose any modern web stack (e.g. React, Vue, Svelte, Angular) and real-time library (e.g. Socket.io, Pusher, Firebase). Apply Human–Computer Interaction (HCI) principles—affordance, feedback, consistency, error prevention, accessibility, and progressive disclosure—to maximize usability.
+
+**Requirements:**
+1. **Fetch & display conversation history** for a given `leadId`
+   - Endpoint: `GET /api/messages?leadId={leadId}`
+   - Data: `{ id, from, to, body, direction, status, createdAt }`
+   - Group by day, align incoming on left, outgoing on right.
+2. **Compose & send messages**
+   - Input area at bottom with clear placeholder text, “Type your message…”
+   - “Send” action: POST `/api/messages/send { leadId, to, body }`
+   - Show loading state, disable button while sending, handle errors gracefully with inline feedback.
+3. **Real-time updates**
+   - Open a live channel scoped to the conversation.
+   - New messages append automatically and trigger smooth scroll.
+4. **UX & Accessibility (a11y)**
+   - Keyboard navigable (focus management for input and send)
+   - ARIA labels for message bubbles, send button, and status icons
+   - Responsive layout for mobile and desktop
+   - Contrast ratios meeting WCAG AA standards
+5. **HCI Principles**
+   - **Feedback:** clear visual cues for “sending,” “delivered,” and “failed”
+   - **Consistency:** messaging UI patterns align with common chat apps
+   - **Affordance:** elements look clickable/tappable
+   - **Error prevention & recovery:** confirm before discarding typed text
+   - **Progressive disclosure:** hide advanced options (e.g. attachments) behind a toggle
+
+**Deliverables:**
+- Core component(s) (`MessagesTab`, plus any child components)
+- Data-fetching and real-time hooks/services
+- Styles and layout with your chosen CSS approach
+- Type definitions (if using TypeScript)
+
+Before writing code, do a quick web search on best practices for chat UIs and accessibility guidelines. Then generate the full implementation.
