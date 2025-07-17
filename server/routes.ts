@@ -1017,12 +1017,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "User must belong to an organization" });
       }
 
-      // Find lead by phone number within user's organization
+      // Find or create lead by phone number within user's organization
       const leads = await storage.getLeads(req.user!.id);
-      const lead = leads.find(l => l.phone === phone);
+      let lead = leads.find(l => l.phone === phone);
       
       if (!lead) {
-        return res.status(404).json({ error: "Lead not found for this phone number" });
+        // Create a new lead for this phone number
+        lead = await storage.createLead({
+          name: `Contact ${phone.slice(-4)}`, // Use last 4 digits as temporary name
+          phone: phone,
+          serviceType: "regular",
+          rooms: "Not specified",
+          status: "new",
+          source: "sms",
+          notes: "Contact created from SMS conversation"
+        }, req.user!.id, user.organizationId);
       }
 
       // Future feature: @schedule command processing would go here

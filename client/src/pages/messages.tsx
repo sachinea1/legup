@@ -7,6 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Send, 
   Search, 
@@ -17,7 +19,9 @@ import {
   AlertCircle,
   ArrowLeft,
   MessageSquare,
-  Filter
+  Filter,
+  Plus,
+  User
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +43,10 @@ export default function Messages() {
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [isComposing, setIsComposing] = useState(false);
+  const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
+  const [newMessagePhone, setNewMessagePhone] = useState("");
+  const [newMessageContent, setNewMessageContent] = useState("");
+  const [selectedLeadId, setSelectedLeadId] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
@@ -123,6 +131,36 @@ export default function Messages() {
     },
   });
 
+  // New conversation mutation
+  const startConversationMutation = useMutation({
+    mutationFn: async ({ phone, message }: { phone: string; message: string }) => {
+      return apiRequest("POST", "/api/messages", { phone, message });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/messages"] });
+      setIsNewMessageOpen(false);
+      setNewMessagePhone("");
+      setNewMessageContent("");
+      setSelectedLeadId("");
+      
+      // Select the new conversation
+      const sentMessage = data as SmsMessage;
+      setSelectedConversation(sentMessage.phone);
+      
+      toast({
+        title: "Message sent",
+        description: "New conversation started successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to send message",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedConversation || sendMessageMutation.isPending) return;
@@ -131,6 +169,24 @@ export default function Messages() {
       phone: selectedConversation,
       message: newMessage.trim(),
     });
+  };
+
+  const handleStartConversation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessageContent.trim() || !newMessagePhone.trim() || startConversationMutation.isPending) return;
+    
+    await startConversationMutation.mutateAsync({
+      phone: newMessagePhone.trim(),
+      message: newMessageContent.trim(),
+    });
+  };
+
+  const handleLeadSelect = (leadId: string) => {
+    setSelectedLeadId(leadId);
+    const selectedLead = leads.find(lead => lead.id === parseInt(leadId));
+    if (selectedLead?.phone) {
+      setNewMessagePhone(selectedLead.phone);
+    }
   };
 
   // Auto-scroll to bottom when new messages arrive or conversation changes
@@ -234,9 +290,99 @@ export default function Messages() {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
-            <Button variant="ghost" size="sm" aria-label="Filter conversations">
-              <Filter className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Dialog open={isNewMessageOpen} onOpenChange={setIsNewMessageOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" aria-label="Start new conversation">
+                    <Plus className="w-4 h-4 mr-1" />
+                    New
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Start New Conversation</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleStartConversation} className="space-y-4">
+                    <div>
+                      <label htmlFor="lead-select" className="block text-sm font-medium text-gray-700 mb-2">
+                        Select Contact
+                      </label>
+                      <Select value={selectedLeadId} onValueChange={handleLeadSelect}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a lead or enter phone manually" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {leads.length === 0 ? (
+                            <div className="p-2 text-sm text-gray-500">No leads available</div>
+                          ) : (
+                            leads.map((lead) => (
+                              <SelectItem key={lead.id} value={lead.id.toString()}>
+                                <div className="flex items-center space-x-2">
+                                  <User className="w-4 h-4" />
+                                  <span>{lead.name} - {displayPhoneNumber(lead.phone)}</span>
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="phone-input" className="block text-sm font-medium text-gray-700 mb-2">
+                        Phone Number
+                      </label>
+                      <Input
+                        id="phone-input"
+                        type="tel"
+                        placeholder="(555) 123-4567"
+                        value={newMessagePhone}
+                        onChange={(e) => setNewMessagePhone(e.target.value)}
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="message-input" className="block text-sm font-medium text-gray-700 mb-2">
+                        Message
+                      </label>
+                      <Input
+                        id="message-input"
+                        placeholder="Type your message..."
+                        value={newMessageContent}
+                        onChange={(e) => setNewMessageContent(e.target.value)}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsNewMessageOpen(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={!newMessageContent.trim() || !newMessagePhone.trim() || startConversationMutation.isPending}
+                      >
+                        {startConversationMutation.isPending ? (
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-2" />
+                        )}
+                        Send Message
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              
+              <Button variant="ghost" size="sm" aria-label="Filter conversations">
+                <Filter className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
           
           {/* Search */}
@@ -257,7 +403,15 @@ export default function Messages() {
             {filteredConversations.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No conversations found</p>
+                <p className="mb-4">No conversations yet</p>
+                <Button 
+                  onClick={() => setIsNewMessageOpen(true)}
+                  size="sm"
+                  className="mx-auto"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Start First Conversation
+                </Button>
               </div>
             ) : (
               filteredConversations.map((thread) => (
