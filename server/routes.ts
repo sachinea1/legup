@@ -879,23 +879,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
+  // Get SMS messages (organization-aware)
+  app.get("/api/messages", authenticateToken, async (req, res) => {
+    try {
+      const { phone } = req.query;
       
-      // Provide specific error messages for different failure types
-      if (error.message?.includes("needs to be verified")) {
-        res.status(400).json({ 
-          error: "Phone number verification required",
-          details: "Trial accounts can only send to verified numbers. Please verify this number in your Twilio console or upgrade your account."
-        });
-      } else if (error.message?.includes("Invalid phone number")) {
-        res.status(400).json({ error: "Invalid phone number format" });
-      } else {
-        res.status(500).json({ 
-          error: "Message delivery failed", 
-          details: error.message || "Unknown error occurred"
-        });
+      // Get user with organization context
+      const user = await storage.getUser(req.user!.id);
+      if (!user?.organizationId) {
+        return res.status(403).json({ error: "User must belong to an organization" });
       }
+
+      // Get messages for organization, optionally filtered by phone
+      const messages = await storage.getSmsMessagesByOrganization(
+        user.organizationId, 
+        phone as string | undefined
+      );
+      
+      res.json(messages);
+    } catch (error: any) {
+      console.error("Fetch messages error:", error);
+      res.status(500).json({ error: "Failed to fetch messages" });
     }
   });
 
@@ -1021,19 +1025,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Lead not found for this phone number" });
       }
 
-      // Check for @schedule command and process it
+      // Future feature: @schedule command processing would go here
       let processedMessage = message;
-      let shouldCreateAppointment = false;
-      let appointmentData = null;
-
-      if (message.includes('@schedule')) {
-        const scheduleResult = await automationService.processScheduleCommand(message, lead.id);
-        if (scheduleResult.shouldSchedule) {
-          shouldCreateAppointment = true;
-          appointmentData = scheduleResult.appointmentData;
-          processedMessage = scheduleResult.responseMessage || message;
-        }
-      }
 
       // Send SMS via Twilio
       const messageSid = await twilioService.sendSms(phone, processedMessage);
@@ -1049,18 +1042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: messageSid ? "sent" : "failed",
       });
 
-      // Create appointment if @schedule command was used
-      if (shouldCreateAppointment && appointmentData) {
-        await storage.createAppointment({
-          leadId: lead.id,
-          organizationId: user.organizationId,
-          scheduledDate: appointmentData.scheduledDate,
-          duration: appointmentData.duration || 120, // Default 2 hours
-          serviceType: appointmentData.serviceType || lead.serviceType,
-          notes: `Auto-scheduled via @schedule command from SMS`,
-          status: "confirmed"
-        });
-      }
+
 
       res.json(smsMessage);
     } catch (error: any) {

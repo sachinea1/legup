@@ -1,56 +1,50 @@
 /**
- * Phone number utilities for formatting and validation
+ * Utility functions for phone number formatting and display
  */
 
-export function formatPhoneNumber(phone: string): string {
-  // Remove all non-digits first
+export function displayPhoneNumber(phone: string): string {
+  if (!phone) return "";
+  
+  // Remove all non-digits
   const cleaned = phone.replace(/\D/g, "");
   
-  // Handle empty or invalid input
-  if (!cleaned || cleaned.length < 10) {
-    throw new Error(`Invalid phone number: ${phone}`);
+  // Handle different phone number lengths
+  if (cleaned.length === 10) {
+    // US number without country code: (555) 123-4567
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    // US number with country code: +1 (555) 123-4567
+    return `+1 (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
+  } else if (cleaned.length > 11) {
+    // International number: +XX XXX XXX XXXX
+    const countryCode = cleaned.slice(0, cleaned.length - 10);
+    const number = cleaned.slice(-10);
+    return `+${countryCode} (${number.slice(0, 3)}) ${number.slice(3, 6)}-${number.slice(6)}`;
   }
   
-  // US/Canada numbers (10 digits) - add +1 prefix
+  // Return original if can't format
+  return phone;
+}
+
+export function formatPhoneForStorage(phone: string): string {
+  // Remove all non-digits
+  const cleaned = phone.replace(/\D/g, "");
+  
+  // Add country code if missing
   if (cleaned.length === 10) {
     return `+1${cleaned}`;
-  }
-  
-  // US/Canada numbers with country code (11 digits starting with 1)
-  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+  } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
     return `+${cleaned}`;
   }
   
-  // International numbers - add + prefix if not present
-  if (cleaned.length > 11) {
-    return `+${cleaned}`;
-  }
-  
-  // Default: add +1 for unrecognized format (assume US)
-  return `+1${cleaned}`;
+  // Return with + prefix if not present
+  return cleaned.startsWith('+') ? phone : `+${cleaned}`;
 }
 
-export function displayPhoneNumber(phone: string): string {
-  try {
-    const formatted = formatPhoneNumber(phone);
-    
-    // Format US/Canada numbers for display
-    if (formatted.startsWith('+1') && formatted.length === 12) {
-      const number = formatted.slice(2);
-      return `+1 (${number.slice(0, 3)}) ${number.slice(3, 6)}-${number.slice(6)}`;
-    }
-    
-    return formatted;
-  } catch {
-    return phone; // Return original if formatting fails
-  }
-}
+// Alias for compatibility
+export const formatPhoneNumber = formatPhoneForStorage;
 
 export function validatePhoneNumber(phone: string): boolean {
-  try {
-    const cleaned = phone.replace(/\D/g, "");
-    return cleaned.length >= 10;
-  } catch {
-    return false;
-  }
+  const cleaned = phone.replace(/\D/g, "");
+  return cleaned.length >= 10 && cleaned.length <= 15;
 }

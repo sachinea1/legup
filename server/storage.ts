@@ -357,6 +357,23 @@ export class DatabaseStorage implements IStorage {
     return await query;
   }
 
+  async getSmsMessagesByOrganization(organizationId: number, phone?: string): Promise<SmsMessage[]> {
+    let query = db.select().from(smsMessages)
+      .where(eq(smsMessages.organizationId, organizationId))
+      .orderBy(desc(smsMessages.createdAt));
+    
+    if (phone) {
+      query = query.where(
+        and(
+          eq(smsMessages.organizationId, organizationId),
+          eq(smsMessages.phone, phone)
+        )
+      );
+    }
+    
+    return await query;
+  }
+
   async getUnprocessedSms(): Promise<SmsMessage[]> {
     return await db
       .select()
