@@ -114,7 +114,7 @@ export default function Schedule() {
   const goToNextWeek = () => setCurrentDate(addWeeks(currentDate, 1));
   const goToToday = () => setCurrentDate(new Date());
 
-  // Drag and drop mutation
+  // Optimistic drag and drop mutation with instant UI updates
   const rescheduleAppointmentMutation = useMutation({
     mutationFn: async ({ appointmentId, newDate, newStaff }: { appointmentId: number, newDate: Date, newStaff?: string }) => {
       const updateData: any = {
@@ -128,20 +128,53 @@ export default function Schedule() {
       const response = await apiRequest("PATCH", `/api/appointments/${appointmentId}`, updateData);
       return response.json();
     },
+    onMutate: async ({ appointmentId, newDate, newStaff }) => {
+      // Cancel outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["/api/appointments"] });
+
+      // Snapshot the previous value
+      const previousAppointments = queryClient.getQueryData(["/api/appointments"]);
+
+      // Optimistically update to new value
+      queryClient.setQueryData(["/api/appointments"], (old: any[]) => {
+        if (!old) return [];
+        return old.map(apt => 
+          apt.id === appointmentId 
+            ? { 
+                ...apt, 
+                scheduledDate: newDate.toISOString(),
+                ...(newStaff && { assignedCleaner: newStaff })
+              }
+            : apt
+        );
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousAppointments };
+    },
+    onError: (err, variables, context) => {
+      // If mutation fails, roll back to previous state
+      if (context?.previousAppointments) {
+        queryClient.setQueryData(["/api/appointments"], context.previousAppointments);
+      }
+      
+      console.error("Error rescheduling appointment:", err);
+      toast({
+        title: "Error",
+        description: "Failed to reschedule appointment. Changes have been reverted.",
+        variant: "destructive",
+      });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
+      // Show success message but don't invalidate (optimistic update already handled it)
       toast({
         title: "Appointment Updated",
         description: "The appointment has been successfully rescheduled.",
       });
     },
-    onError: (error) => {
-      console.error("Error rescheduling appointment:", error);
-      toast({
-        title: "Error",
-        description: "Failed to reschedule appointment. Please try again.",
-        variant: "destructive",
-      });
+    onSettled: () => {
+      // Always refetch after error or success to ensure server state
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
     },
   });
 
@@ -409,8 +442,8 @@ export default function Schedule() {
                   <Card 
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`min-h-[400px] ${isCurrentDay ? 'ring-2 ring-blue-500' : ''} ${
-                      snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
+                    className={`min-h-[400px] transition-all duration-200 ${isCurrentDay ? 'ring-2 ring-blue-500' : ''} ${
+                      snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300 shadow-lg scale-[1.02] ring-2 ring-blue-200' : 'hover:shadow-md'
                     }`}
                   >
                     <CardHeader className="pb-2">
@@ -443,8 +476,8 @@ export default function Schedule() {
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
-                                className={`p-3 rounded-lg border-l-4 ${serviceTheme} bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer ${
-                                  snapshot.isDragging ? 'shadow-lg rotate-2' : ''
+                                className={`p-3 rounded-lg border-l-4 ${serviceTheme} bg-white shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
+                                  snapshot.isDragging ? 'shadow-xl scale-105 rotate-2 z-50' : ''
                                 }`}
                               >
                                 <div className="flex items-start justify-between mb-2">
@@ -524,8 +557,8 @@ export default function Schedule() {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`border border-gray-200 rounded-lg p-3 min-h-[60px] flex items-center ${
-                          snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : ''
+                        className={`border border-gray-200 rounded-lg p-3 min-h-[60px] flex items-center transition-all duration-200 ${
+                          snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300 shadow-md scale-[1.02]' : 'hover:bg-gray-50'
                         }`}
                       >
                         <div className="w-20 text-sm font-medium text-gray-600 mr-4">
@@ -546,8 +579,8 @@ export default function Schedule() {
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
-                                    className={`p-3 rounded-lg border ${theme} cursor-move transition-all min-w-[250px] ${
-                                      snapshot.isDragging ? 'rotate-2 shadow-lg' : 'hover:shadow-md'
+                                    className={`p-3 rounded-lg border ${theme} cursor-move transition-all duration-200 min-w-[250px] ${
+                                      snapshot.isDragging ? 'rotate-2 shadow-xl scale-105 z-50' : 'hover:shadow-md'
                                     }`}
                                   >
                                     <div className="font-medium">{appointment.customerName}</div>
