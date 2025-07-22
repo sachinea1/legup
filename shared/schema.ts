@@ -75,6 +75,7 @@ export const appointments = pgTable("appointments", {
   address: text("address").notNull(),
   scheduledDate: timestamp("scheduled_date").notNull(),
   duration: integer("duration").default(120), // minutes
+  assignedCleaner: text("assigned_cleaner"), // Staff member assigned to this appointment
   status: text("status").notNull().default("pending"), // pending, confirmed, in_progress, completed, cancelled
   googleEventId: text("google_event_id"),
   cost: integer("cost"),

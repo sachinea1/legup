@@ -60,7 +60,7 @@ export default function Schedule() {
   const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
 
   // Fetch appointments
-  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery({
+  const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<Appointment[]>({
     queryKey: ["/api/appointments"],
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
@@ -78,8 +78,8 @@ export default function Schedule() {
 
   // Filter appointments
   const filteredAppointments = useMemo(() => {
-    return appointments.filter((appointment: Appointment) => {
-      const matchesStaff = selectedStaff === "all" || appointment.assignedCleaner === selectedStaff;
+    return appointments.filter((appointment) => {
+      const matchesStaff = selectedStaff === "all" || (appointment.assignedCleaner || "unassigned") === selectedStaff;
       const matchesServiceType = selectedServiceType === "all" || appointment.serviceType === selectedServiceType;
       const matchesSearch = searchQuery === "" || 
         appointment.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -91,7 +91,7 @@ export default function Schedule() {
 
   // Get appointments for a specific day
   const getAppointmentsForDay = (date: Date) => {
-    return filteredAppointments.filter((appointment: Appointment) => {
+    return filteredAppointments.filter((appointment) => {
       const appointmentDate = new Date(appointment.scheduledDate);
       return isSameDay(appointmentDate, date);
     });
@@ -265,7 +265,7 @@ export default function Schedule() {
     const appointmentDurationMs = (appointment.duration || 120) * 60000; // Default 2 hours
     const conflictingAppointment = appointments.find(apt => 
       apt.id !== appointmentId &&
-      apt.assignedCleaner === appointment.assignedCleaner &&
+      (apt.assignedCleaner || "unassigned") === (appointment.assignedCleaner || "unassigned") &&
       (() => {
         const aptStart = new Date(apt.scheduledDate).getTime();
         const aptEnd = aptStart + (apt.duration || 120) * 60000;
@@ -404,7 +404,7 @@ export default function Schedule() {
             </Button>
             {mockStaff.map((staff) => {
               const staffAppointments = filteredAppointments.filter(
-                (apt: Appointment) => apt.assignedCleaner === staff.id.toString()
+                (apt) => (apt.assignedCleaner || "unassigned") === staff.id.toString()
               );
               return (
                 <Button
@@ -504,8 +504,8 @@ export default function Schedule() {
                             }`}
                             style={{ minHeight: '40px' }}
                           >
-                            {dayAppointments.map((appointment: Appointment, index) => {
-                              const assignedStaffMember = mockStaff.find(s => s.id.toString() === appointment.assignedCleaner);
+                            {dayAppointments.map((appointment, index) => {
+                              const assignedStaffMember = mockStaff.find(s => s.id.toString() === (appointment.assignedCleaner || "unassigned"));
                               const serviceTheme = getAppointmentTheme(appointment.serviceType);
                               
                               return (
@@ -575,9 +575,9 @@ export default function Schedule() {
                           {time}
                         </div>
                         <div className="flex-1 flex gap-2 flex-wrap">
-                          {timeAppointments.map((appointment: Appointment, index) => {
+                          {timeAppointments.map((appointment, index) => {
                             const theme = getAppointmentTheme(appointment.serviceType);
-                            const staffMember = mockStaff.find(s => s.id.toString() === appointment.assignedCleaner);
+                            const staffMember = mockStaff.find(s => s.id.toString() === (appointment.assignedCleaner || "unassigned"));
                             return (
                               <Draggable
                                 key={appointment.id}
