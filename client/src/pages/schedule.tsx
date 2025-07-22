@@ -58,6 +58,7 @@ export default function Schedule() {
   const [showNewJobModal, setShowNewJobModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Fetch appointments
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<Appointment[]>({
@@ -76,8 +77,10 @@ export default function Schedule() {
   const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
-  // Filter appointments
+  // Filter appointments with memo for performance
   const filteredAppointments = useMemo(() => {
+    if (!appointments || appointments.length === 0) return [];
+    
     return appointments.filter((appointment) => {
       const matchesStaff = selectedStaff === "all" || (appointment.assignedCleaner || "unassigned") === selectedStaff;
       const matchesServiceType = selectedServiceType === "all" || appointment.serviceType === selectedServiceType;
@@ -152,11 +155,26 @@ export default function Schedule() {
       // Return a context object with the snapshotted value
       return { previousAppointments };
     },
+    onSuccess: (data) => {
+      // Update with actual server response to ensure consistency
+      queryClient.setQueryData(["/api/appointments"], (old: any[]) => {
+        if (!old) return [data];
+        return old.map(apt => apt.id === data.id ? data : apt);
+      });
+      
+      toast({
+        title: "Appointment Updated",
+        description: "The appointment has been successfully rescheduled.",
+      });
+    },
     onError: (err, variables, context) => {
       // If mutation fails, roll back to previous state
       if (context?.previousAppointments) {
         queryClient.setQueryData(["/api/appointments"], context.previousAppointments);
       }
+      
+      // Refetch on error to ensure we have correct state
+      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
       
       console.error("Error rescheduling appointment:", err);
       toast({
@@ -164,17 +182,6 @@ export default function Schedule() {
         description: "Failed to reschedule appointment. Changes have been reverted.",
         variant: "destructive",
       });
-    },
-    onSuccess: () => {
-      // Show success message but don't invalidate (optimistic update already handled it)
-      toast({
-        title: "Appointment Updated",
-        description: "The appointment has been successfully rescheduled.",
-      });
-    },
-    onSettled: () => {
-      // Always refetch after error or success to ensure server state
-      queryClient.invalidateQueries({ queryKey: ["/api/appointments"] });
     },
   });
 
@@ -193,8 +200,18 @@ export default function Schedule() {
     return { hours: hour24, minutes };
   };
 
+  // Handle drag start for visual feedback
+  const handleDragStart = useCallback((start: any) => {
+    setIsDragging(true);
+    const appointmentId = parseInt(start.draggableId);
+    const appointment = appointments.find(apt => apt.id === appointmentId);
+    setDraggedAppointment(appointment || null);
+  }, [appointments]);
+
   // Handle drag and drop
   const handleDragEnd = useCallback((result: DropResult) => {
+    setIsDragging(false);
+    setDraggedAppointment(null); // Clear dragged appointment
     if (!result.destination) return;
     
     const appointmentId = parseInt(result.draggableId);
@@ -303,7 +320,7 @@ export default function Schedule() {
   }
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
+    <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="p-6 space-y-6">
         {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -519,10 +536,16 @@ export default function Schedule() {
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
-                                      className={`absolute inset-x-1 inset-y-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-all duration-200 ${
-                                        snapshot.isDragging ? 'shadow-xl scale-105 z-50' : 'hover:shadow-md'
+                                      className={`absolute inset-x-1 inset-y-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-150 ease-out ${
+                                        snapshot.isDragging ? 'shadow-2xl scale-110 rotate-3 z-50' : 'hover:shadow-md'
                                       }`}
-                                      style={{ zIndex: snapshot.isDragging ? 1000 : 1 }}
+                                      style={{ 
+                                        ...provided.draggableProps.style,
+                                        zIndex: snapshot.isDragging ? 1000 : 1,
+                                        transform: snapshot.isDragging 
+                                          ? `${provided.draggableProps.style?.transform || ''} rotate(3deg) scale(1.1)`
+                                          : provided.draggableProps.style?.transform
+                                      }}
                                     >
                                       <div className="font-medium truncate">{appointment.customerName}</div>
                                       <div className="text-xs opacity-90 truncate">{appointment.address}</div>
