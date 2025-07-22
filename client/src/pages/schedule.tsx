@@ -42,7 +42,7 @@ const timeSlots = [
   "8:00 AM", "8:30 AM", "9:00 AM", "9:30 AM", "10:00 AM", "10:30 AM",
   "11:00 AM", "11:30 AM", "12:00 PM", "12:30 PM", "1:00 PM", "1:30 PM",
   "2:00 PM", "2:30 PM", "3:00 PM", "3:30 PM", "4:00 PM", "4:30 PM",
-  "5:00 PM", "5:30 PM", "6:00 PM"
+  "5:00 PM", "5:30 PM", "6:00 PM", "6:30 PM", "7:00 PM", "7:30 PM", "8:00 PM"
 ];
 
 type ViewMode = "week" | "day";
@@ -201,25 +201,46 @@ export default function Schedule() {
     const appointment = appointments.find(apt => apt.id === appointmentId);
     if (!appointment) return;
 
-    // Parse destination - format: "day-YYYY-MM-DD", "time-8:00 AM", or "staff-ID"
+    // Parse destination - format: "time-YYYY-MM-DD-8:00 AM", "time-8:00 AM", or "staff-ID"
     const destId = result.destination.droppableId;
-    const [destType, ...destValueParts] = destId.split('-');
-    const destValue = destValueParts.join('-'); // Rejoin in case time has dashes
+    
+    let destType: string;
+    let destValue: string;
+    let destDate: string | null = null;
+    
+    if (destId.startsWith('time-') && destId.includes('-202')) {
+      // New time grid format: "time-2024-01-25-8:00 AM"
+      const parts = destId.split('-');
+      destType = 'time-grid';
+      destDate = `${parts[1]}-${parts[2]}-${parts[3]}`; // "2024-01-25"
+      destValue = parts.slice(4).join('-'); // "8:00 AM"
+    } else {
+      // Legacy formats
+      const [type, ...valueParts] = destId.split('-');
+      destType = type;
+      destValue = valueParts.join('-');
+    }
     
     let newDate: Date;
     
-    if (destType === 'day') {
-      // Moving to a different day (week view)
-      // Parse the date string safely to avoid timezone issues
-      const [year, month, day] = destValue.split('-').map(Number);
+    if (destType === 'time-grid') {
+      // Moving within time grid (week view)
+      const [year, month, day] = destDate!.split('-').map(Number);
       newDate = new Date(year, month - 1, day); // month is 0-indexed
+      
+      const { hours, minutes } = parseTimeString(destValue);
+      newDate.setHours(hours, minutes, 0, 0);
+      
+    } else if (destType === 'day') {
+      // Moving to a different day (legacy week view)
+      const [year, month, day] = destValue.split('-').map(Number);
+      newDate = new Date(year, month - 1, day);
       
       const currentTime = new Date(appointment.scheduledDate);
       newDate.setHours(currentTime.getHours(), currentTime.getMinutes(), 0, 0);
       
     } else if (destType === 'time') {
       // Moving to a different time slot (day view)
-      // Use current date but avoid timezone issues
       const year = currentDate.getFullYear();
       const month = currentDate.getMonth();
       const day = currentDate.getDate();
@@ -430,115 +451,104 @@ export default function Schedule() {
 
       {/* Calendar Grid */}
       {viewMode === "week" ? (
-        <div className="grid grid-cols-1 lg:grid-cols-7 gap-4">
-          {weekDays.map((day) => {
-            const dayAppointments = getAppointmentsForDay(day);
-            const isCurrentDay = isToday(day);
-            const dayId = format(day, 'yyyy-MM-dd');
-            
-            return (
-              <Droppable key={dayId} droppableId={`day-${dayId}`}>
-                {(provided, snapshot) => (
-                  <Card 
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`min-h-[400px] transition-all duration-200 ${isCurrentDay ? 'ring-2 ring-blue-500' : ''} ${
-                      snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300 shadow-lg scale-[1.02] ring-2 ring-blue-200' : 'hover:shadow-md'
-                    }`}
-                  >
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium flex items-center justify-between">
-                        <span className={isCurrentDay ? 'text-blue-600' : ''}>
-                          {format(day, "EEE")}
-                        </span>
-                        <span className={`text-lg ${isCurrentDay ? 'text-blue-600 font-bold' : ''}`}>
-                          {format(day, "d")}
-                        </span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      {dayAppointments.length === 0 ? (
-                        <div className="text-center text-gray-500 text-sm py-8">
-                          No appointments
-                        </div>
-                      ) : (
-                        dayAppointments.map((appointment: Appointment, index) => {
-                          const assignedStaffMember = mockStaff.find(s => s.id.toString() === appointment.assignedCleaner);
-                          const serviceTheme = getAppointmentTheme(appointment.serviceType);
-                        
-                        return (
-                          <Draggable 
-                            key={appointment.id} 
-                            draggableId={appointment.id.toString()} 
-                            index={index}
+        /* Time Grid View - Outlook Style */
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          {/* Header Row */}
+          <div className="grid grid-cols-8 border-b border-gray-200">
+            {/* Time Column Header */}
+            <div className="p-3 bg-gray-50 border-r border-gray-200"></div>
+            {/* Day Headers */}
+            {weekDays.map((day) => {
+              const isCurrentDay = isToday(day);
+              return (
+                <div key={format(day, 'yyyy-MM-dd')} className={`p-3 text-center border-r border-gray-200 last:border-r-0 ${isCurrentDay ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                  <div className={`text-sm font-medium ${isCurrentDay ? 'text-blue-600' : 'text-gray-700'}`}>
+                    {format(day, "EEE")}
+                  </div>
+                  <div className={`text-lg font-semibold ${isCurrentDay ? 'text-blue-600' : 'text-gray-900'}`}>
+                    {format(day, "d")}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {/* Time Grid Body */}
+          <div className="relative">
+            {timeSlots.map((time, timeIndex) => {
+              const isHourBoundary = time.endsWith(':00 AM') || time.endsWith(':00 PM');
+              
+              return (
+                <div key={time} className={`grid grid-cols-8 ${isHourBoundary ? 'border-t border-gray-300' : 'border-t border-gray-100'}`}>
+                  {/* Time Label */}
+                  <div className={`p-2 text-right text-xs text-gray-600 bg-gray-50 border-r border-gray-200 ${isHourBoundary ? 'font-medium' : ''}`} style={{ minHeight: '40px' }}>
+                    {isHourBoundary ? time : ''}
+                  </div>
+                  
+                  {/* Day Columns */}
+                  {weekDays.map((day) => {
+                    const dayId = format(day, 'yyyy-MM-dd');
+                    const dayAppointments = getAppointmentsForDay(day).filter(apt => {
+                      const aptTime = getAppointmentTime(apt);
+                      return aptTime === time;
+                    });
+                    
+                    return (
+                      <Droppable key={`${dayId}-${time}`} droppableId={`time-${dayId}-${time}`}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className={`border-r border-gray-200 last:border-r-0 relative transition-all duration-200 ${
+                              snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+                            }`}
+                            style={{ minHeight: '40px' }}
                           >
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                className={`p-3 rounded-lg border-l-4 ${serviceTheme} bg-white shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer ${
-                                  snapshot.isDragging ? 'shadow-xl scale-105 rotate-2 z-50' : ''
-                                }`}
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <div className="flex-1">
-                                    <h4 className="font-medium text-sm text-gray-900">
-                                      {appointment.customerName}
-                                    </h4>
-                                    <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
-                                      <Clock className="w-3 h-3" />
-                                      {getAppointmentTime(appointment)}
+                            {dayAppointments.map((appointment: Appointment, index) => {
+                              const assignedStaffMember = mockStaff.find(s => s.id.toString() === appointment.assignedCleaner);
+                              const serviceTheme = getAppointmentTheme(appointment.serviceType);
+                              
+                              return (
+                                <Draggable
+                                  key={appointment.id}
+                                  draggableId={appointment.id.toString()}
+                                  index={index}
+                                >
+                                  {(provided, snapshot) => (
+                                    <div
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      className={`absolute inset-x-1 inset-y-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-all duration-200 ${
+                                        snapshot.isDragging ? 'shadow-xl scale-105 z-50' : 'hover:shadow-md'
+                                      }`}
+                                      style={{ zIndex: snapshot.isDragging ? 1000 : 1 }}
+                                    >
+                                      <div className="font-medium truncate">{appointment.customerName}</div>
+                                      <div className="text-xs opacity-90 truncate">{appointment.address}</div>
+                                      {assignedStaffMember && (
+                                        <div className="flex items-center gap-1 mt-1">
+                                          <div className="w-3 h-3 bg-white bg-opacity-30 rounded-full flex items-center justify-center">
+                                            <span className="text-xs font-bold">{assignedStaffMember.avatar.charAt(0)}</span>
+                                          </div>
+                                          <span className="text-xs opacity-90 truncate">{assignedStaffMember.name}</span>
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <div {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing">
-                                      <GripVertical className="w-4 h-4 text-gray-400" />
-                                    </div>
-                                    {assignedStaffMember && (
-                                      <Avatar className="w-6 h-6">
-                                        <AvatarFallback className={`${assignedStaffMember.color} text-white text-xs`}>
-                                          {assignedStaffMember.avatar}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-1 text-xs text-gray-600">
-                                    <MapPin className="w-3 h-3" />
-                                    <span className="truncate">{appointment.address}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1 text-xs text-gray-600">
-                                    <Phone className="w-3 h-3" />
-                                    {displayPhoneNumber(appointment.customerPhone)}
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-center justify-between mt-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {appointment.serviceType.replace('_', ' ')}
-                                  </Badge>
-                                  <Badge 
-                                    variant={appointment.status === 'confirmed' ? 'default' : 'secondary'}
-                                    className="text-xs"
-                                  >
-                                    {appointment.status}
-                                  </Badge>
-                                </div>
-                              </div>
-                            )}
-                          </Draggable>
-                        );
-                      })
-                    )}
-                    {provided.placeholder}
-                  </CardContent>
-                </Card>
-              )}
-            </Droppable>
-          );
-          })}
+                                  )}
+                                </Draggable>
+                              );
+                            })}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         </div>
       ) : (
         /* Day View */
