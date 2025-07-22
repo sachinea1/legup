@@ -145,6 +145,21 @@ export default function Schedule() {
     },
   });
 
+  // Helper function to parse time string to hours/minutes
+  const parseTimeString = (timeStr: string) => {
+    const [time, period] = timeStr.split(' ');
+    const [hours, minutes] = time.split(':').map(Number);
+    let hour24 = hours;
+    
+    if (period === 'PM' && hours !== 12) {
+      hour24 += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hour24 = 0;
+    }
+    
+    return { hours: hour24, minutes };
+  };
+
   // Handle drag and drop
   const handleDragEnd = useCallback((result: DropResult) => {
     if (!result.destination) return;
@@ -153,36 +168,25 @@ export default function Schedule() {
     const appointment = appointments.find(apt => apt.id === appointmentId);
     if (!appointment) return;
 
-    // Parse destination - format: "day-YYYY-MM-DD" or "staff-ID"
-    const [destType, destValue] = result.destination.droppableId.split('-');
+    // Parse destination - format: "day-YYYY-MM-DD", "time-8:00 AM", or "staff-ID"
+    const destId = result.destination.droppableId;
+    const [destType, ...destValueParts] = destId.split('-');
+    const destValue = destValueParts.join('-'); // Rejoin in case time has dashes
+    
+    let newDate: Date;
     
     if (destType === 'day') {
-      // Moving to a different day
-      const newDate = new Date(destValue);
+      // Moving to a different day (week view)
+      newDate = new Date(destValue);
       const currentTime = new Date(appointment.scheduledDate);
       newDate.setHours(currentTime.getHours(), currentTime.getMinutes());
       
-      // Check for staff conflicts on the new date
-      const conflictingAppointment = appointments.find(apt => 
-        apt.id !== appointmentId &&
-        apt.assignedCleaner === appointment.assignedCleaner &&
-        new Date(apt.scheduledDate).toDateString() === newDate.toDateString() &&
-        Math.abs(new Date(apt.scheduledDate).getTime() - newDate.getTime()) < (appointment.duration * 60000)
-      );
-
-      if (conflictingAppointment) {
-        toast({
-          title: "Staff Conflict",
-          description: "This cleaner is already assigned to another job at this time.",
-          variant: "destructive",
-        });
-        return;
-      }
+    } else if (destType === 'time') {
+      // Moving to a different time slot (day view)
+      newDate = new Date(currentDate);
+      const { hours, minutes } = parseTimeString(destValue);
+      newDate.setHours(hours, minutes, 0, 0);
       
-      rescheduleAppointmentMutation.mutate({
-        appointmentId,
-        newDate
-      });
     } else if (destType === 'staff') {
       // Reassigning to different staff
       rescheduleAppointmentMutation.mutate({
@@ -190,8 +194,43 @@ export default function Schedule() {
         newDate: new Date(appointment.scheduledDate),
         newStaff: destValue
       });
+      return;
+    } else {
+      return; // Unknown destination type
     }
-  }, [appointments, rescheduleAppointmentMutation]);
+
+    // Check for REAL staff conflicts (same staff, overlapping times)
+    const appointmentDurationMs = (appointment.duration || 120) * 60000; // Default 2 hours
+    const conflictingAppointment = appointments.find(apt => 
+      apt.id !== appointmentId &&
+      apt.assignedCleaner === appointment.assignedCleaner &&
+      (() => {
+        const aptStart = new Date(apt.scheduledDate).getTime();
+        const aptEnd = aptStart + (apt.duration || 120) * 60000;
+        const newStart = newDate.getTime();
+        const newEnd = newStart + appointmentDurationMs;
+        
+        // Check for actual time overlap (not just same day)
+        return (newStart < aptEnd && newEnd > aptStart);
+      })()
+    );
+
+    if (conflictingAppointment) {
+      const conflictTime = format(new Date(conflictingAppointment.scheduledDate), "h:mm a");
+      toast({
+        title: "Staff Conflict",
+        description: `This cleaner is already assigned to another job at ${conflictTime} on this day.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Proceed with rescheduling
+    rescheduleAppointmentMutation.mutate({
+      appointmentId,
+      newDate
+    });
+  }, [appointments, rescheduleAppointmentMutation, currentDate]);
 
   if (appointmentsLoading) {
     return (
