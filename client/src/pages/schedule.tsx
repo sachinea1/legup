@@ -177,13 +177,21 @@ export default function Schedule() {
     
     if (destType === 'day') {
       // Moving to a different day (week view)
-      newDate = new Date(destValue);
+      // Parse the date string safely to avoid timezone issues
+      const [year, month, day] = destValue.split('-').map(Number);
+      newDate = new Date(year, month - 1, day); // month is 0-indexed
+      
       const currentTime = new Date(appointment.scheduledDate);
-      newDate.setHours(currentTime.getHours(), currentTime.getMinutes());
+      newDate.setHours(currentTime.getHours(), currentTime.getMinutes(), 0, 0);
       
     } else if (destType === 'time') {
       // Moving to a different time slot (day view)
-      newDate = new Date(currentDate);
+      // Use current date but avoid timezone issues
+      const year = currentDate.getFullYear();
+      const month = currentDate.getMonth();
+      const day = currentDate.getDate();
+      newDate = new Date(year, month, day);
+      
       const { hours, minutes } = parseTimeString(destValue);
       newDate.setHours(hours, minutes, 0, 0);
       
