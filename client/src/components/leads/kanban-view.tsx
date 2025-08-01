@@ -221,7 +221,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
           <div
             ref={provided.innerRef}
             {...provided.draggableProps}
-            className={`mb-3 select-none transition-all duration-150 ${
+            className={`mb-3 select-none transition-all duration-150 relative ${
               snapshot.isDragging 
                 ? "scale-105 rotate-1 z-50 opacity-90" 
                 : isDraggedItem
@@ -232,16 +232,17 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
             aria-grabbed={snapshot.isDragging}
             aria-label={`Lead ${lead.name}. Use spacebar to lift, arrow keys to move, spacebar to drop.`}
           >
-            {/* Drag Handle - CHANGED: Always visible and larger */}
+            {/* Drag Handle - CHANGED: Large visible handle */}
             <div 
               {...provided.dragHandleProps}
-              className={`absolute left-1 top-1/2 transform -translate-y-1/2 z-10 p-1 rounded bg-gray-100 hover:bg-gray-200 ${
+              className={`absolute left-2 top-2 z-20 p-2 rounded-md bg-gray-200 border border-gray-300 shadow-sm hover:bg-gray-300 ${
                 snapshot.isDragging ? "cursor-grabbing" : "cursor-grab"
-              } transition-colors`}
+              } transition-all`}
               aria-label="Drag handle"
-              onClick={(e) => e.stopPropagation()} // CHANGED: Prevent card click when using drag handle
+              onClick={(e) => e.stopPropagation()}
+              title="Drag to move"
             >
-              <GripVertical className="w-4 h-4 text-gray-500" />
+              <GripVertical className="w-4 h-4 text-gray-700" />
             </div>
 
             <Card
@@ -251,7 +252,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
                   setSelectedLead(lead);
                 }
               }}
-              className={`relative pl-8 ${
+              className={`relative pl-12 ${
                 snapshot.isDragging 
                   ? "shadow-2xl bg-blue-50 border-blue-300 ring-2 ring-blue-200" 
                   : "hover:shadow-md hover:bg-gray-50 hover:border-gray-300"
