@@ -98,3 +98,32 @@
     background-color: var(--clean-amber);
   }
 }
+
+/* CHANGED: Calendar grid fixes to prevent layout shifts during drag */
+.time-grid-row {
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  overflow: visible !important;
+}
+
+.time-grid-appointment {
+  position: absolute !important;
+  left: 4px !important;
+  right: 4px !important;
+}
+
+.time-grid-appointment.dragging {
+  top: auto !important;
+  transform: none !important;
+  z-index: 1000 !important;
+}
+
+/* CHANGED: Prevent row expansion during drag operations */
+.time-grid-row div[role="button"] {
+  overflow: visible !important;
+}
+
+.time-grid-row > div {
+  position: relative !important;
+}

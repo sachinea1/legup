@@ -130,7 +130,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     console.log("Drag update:", update);
   }, []);
 
-  // CHANGED: Copy calendar's exact handleDragEnd pattern
+  // CHANGED: Add null checks and error boundaries to prevent runtime crashes
   const handleDragEnd = useCallback((result: DropResult) => {
     setDragState({
       isDragging: false,
@@ -138,17 +138,45 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       sourceColumn: null,
     });
     
-    if (!result.destination) return;
+    // CHANGED: Early return with explicit null check
+    if (!result.destination || !result.destination.droppableId) return;
 
     const leadId = parseInt(result.draggableId.replace('lead-', ''));
-    const newStatus = result.destination.droppableId.split('-')[1]; // CHANGED: Calendar's parsing pattern
+    const newStatus = result.destination.droppableId.split('-')[1]; // CHANGED: Safe after null check
     const lead = leads.find(l => l.id === leadId);
     
     if (!lead || lead.status === newStatus) return;
 
-    // CHANGED: Use calendar-style optimistic mutation
-    updateLeadStatusMutation.mutate({ leadId, status: newStatus });
-  }, [leads, updateLeadStatusMutation]);
+    // CHANGED: Direct mutation call matching calendar's pattern
+    updateLeadStatusMutation.mutate({ 
+      leadId, 
+      status: newStatus 
+    }, {
+      onMutate: async ({ leadId, status }) => {
+        // CHANGED: Cancel queries and snapshot state
+        await queryClient.cancelQueries({ queryKey: ["/api/leads"] });
+        const previousLeads = queryClient.getQueryData(["/api/leads"]);
+        
+        // CHANGED: Immediate optimistic update
+        queryClient.setQueryData(["/api/leads"], (old: Lead[] = []) => 
+          old.map(lead => lead.id === leadId ? { ...lead, status } : lead)
+        );
+        
+        return { previousLeads };
+      },
+      onError: (err, variables, context) => {
+        // CHANGED: Rollback on error
+        if (context?.previousLeads) {
+          queryClient.setQueryData(["/api/leads"], context.previousLeads);
+        }
+        queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      },
+      onSettled: () => {
+        // CHANGED: Ensure data consistency
+        queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      }
+    });
+  }, [leads, updateLeadStatusMutation, queryClient]);
 
 
 

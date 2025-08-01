@@ -527,10 +527,10 @@ export default function Schedule() {
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`border-r border-gray-200 last:border-r-0 relative transition-all duration-75 ${
+                            className={`border-r border-gray-200 last:border-r-0 relative transition-all duration-75 time-grid-row ${
                               snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
                             }`}
-                            style={{ minHeight: '40px' }}
+                            style={{ height: '40px', minHeight: '40px', maxHeight: '40px' }} // CHANGED: Fixed height
                           >
                             {dayAppointments.map((appointment, index) => {
                               const assignedStaffMember = mockStaff.find(s => s.id.toString() === (appointment.assignedCleaner || "unassigned"));
@@ -547,8 +547,8 @@ export default function Schedule() {
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
-                                      className={`absolute inset-x-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out ${
-                                        snapshot.isDragging ? 'shadow-2xl scale-110 rotate-3 z-50' : 'hover:shadow-md'
+                                      className={`absolute inset-x-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out time-grid-appointment ${
+                                        snapshot.isDragging ? 'shadow-2xl scale-110 rotate-3 z-50 dragging' : 'hover:shadow-md'
                                       }`}
                                       style={{ 
                                         ...provided.draggableProps.style,
