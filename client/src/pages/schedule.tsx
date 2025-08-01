@@ -106,6 +106,22 @@ export default function Schedule() {
     return format(date, "h:mm a");
   };
 
+  // CHANGED: Calculate appointment height based on duration
+  const getAppointmentHeight = (appointment: Appointment) => {
+    const duration = appointment.duration || 120; // Default 2 hours
+    const minutesPerSlot = 30;
+    const slotsNeeded = Math.max(1, Math.ceil(duration / minutesPerSlot));
+    return slotsNeeded * 40; // 40px per 30-min slot
+  };
+
+  // CHANGED: Calculate appointment position within time grid
+  const getAppointmentPosition = (appointment: Appointment) => {
+    const appointmentDate = new Date(appointment.scheduledDate);
+    const minutes = appointmentDate.getMinutes();
+    const offsetPercentage = (minutes / 30) * 100; // Position within 30-min slot
+    return offsetPercentage;
+  };
+
   // Get service type theme
   const getAppointmentTheme = (serviceType: string) => {
     const theme = getServiceTypeTheme(serviceType);
@@ -531,11 +547,13 @@ export default function Schedule() {
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
-                                      className={`absolute inset-x-1 inset-y-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out ${
+                                      className={`absolute inset-x-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out ${
                                         snapshot.isDragging ? 'shadow-2xl scale-110 rotate-3 z-50' : 'hover:shadow-md'
                                       }`}
                                       style={{ 
                                         ...provided.draggableProps.style,
+                                        height: `${getAppointmentHeight(appointment)}px`, // CHANGED: Dynamic height based on duration
+                                        top: `${getAppointmentPosition(appointment)}%`, // CHANGED: Position within slot
                                         zIndex: snapshot.isDragging ? 1000 : 1,
                                         transform: snapshot.isDragging 
                                           ? `${provided.draggableProps.style?.transform || ''} rotate(3deg) scale(1.1)`

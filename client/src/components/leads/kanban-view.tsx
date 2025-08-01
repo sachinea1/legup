@@ -130,79 +130,27 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     console.log("Drag update:", update);
   }, []);
 
+  // CHANGED: Copy calendar's exact handleDragEnd pattern
   const handleDragEnd = useCallback((result: DropResult) => {
-    const { destination, source, draggableId } = result;
-    
-    // Reset drag state
     setDragState({
       isDragging: false,
       draggedLeadId: null,
       sourceColumn: null,
     });
-
-    console.log("Drag end result:", result);
-
-    // If dropped outside a droppable area
-    if (!destination) {
-      console.log("No destination - dropped outside");
-      toast({
-        title: "Drop cancelled",
-        description: "Lead returned to original position",
-      });
-      return;
-    }
-
-    // If dropped in the same position, no action needed
-    if (destination.droppableId === source.droppableId && destination.index === source.index) {
-      console.log("Same position - no change needed");
-      return;
-    }
-
-    // CHANGED: Extract lead ID and parse droppable ID with new format
-    const leadId = parseInt(draggableId.replace('lead-', ''));
-    const newStatus = destination.droppableId.startsWith('status-') 
-      ? destination.droppableId.split('-')[1] 
-      : destination.droppableId;
-    const sourceStatus = source.droppableId.startsWith('status-')
-      ? source.droppableId.split('-')[1]
-      : source.droppableId;
     
-    console.log("Moving lead:", leadId, "from", sourceStatus, "to", newStatus);
-    
-    // Find the lead being moved
+    if (!result.destination) return;
+
+    const leadId = parseInt(result.draggableId.replace('lead-', ''));
+    const newStatus = result.destination.droppableId.split('-')[1]; // CHANGED: Calendar's parsing pattern
     const lead = leads.find(l => l.id === leadId);
-    if (!lead) {
-      console.log("Lead not found:", leadId);
-      toast({
-        title: "Error",
-        description: "Lead not found",
-        variant: "destructive",
-      });
-      return;
-    }
+    
+    if (!lead || lead.status === newStatus) return;
 
-    // Status labels for user feedback
-    const statusLabels = {
-      new: "New",
-      contacted: "Contacted", 
-      qualified: "Qualified",
-      appointment_set: "Appointment Set",
-      closed_won: "Completed"
-    };
-    
-    // CHANGED: Enforce business rule - "Closed" leads can't move backward
-    if (lead.status === "closed_won" && newStatus !== "closed_won") {
-      toast({
-        title: "Action not allowed",
-        description: "Completed leads cannot be moved to previous stages",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // CHANGED: Use calendar-style optimistic mutation directly  
+    // CHANGED: Use calendar-style optimistic mutation
     updateLeadStatusMutation.mutate({ leadId, status: newStatus });
-  }, [leads, updateLeadStatusMutation, toast]); // CHANGED: Updated dependencies for new mutation
+  }, [leads, updateLeadStatusMutation]);
+
+
 
   // Simplified lead card without stage toggle buttons
 
