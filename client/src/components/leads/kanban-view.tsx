@@ -135,7 +135,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     
     // Update lead status via parent component (optimistic update will show immediate UI change)
     onUpdateLeadStatus(leadId, newStatus);
-  }, [leads, onUpdateLeadStatus, toast]);
+  }, [leads, onUpdateLeadStatus, toast]); // CHANGED: Added onUpdateLeadStatus to dependencies
 
   // Simplified lead card without stage toggle buttons
 

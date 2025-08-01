@@ -91,18 +91,7 @@ export function LeadDetailModal({
                 {lead.createdAt ? format(new Date(lead.createdAt), "MMM d, h:mm a") : "No date"}
               </p>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onDeleteLead(lead.id);
-                onOpenChange(false);
-              }}
-              className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-              aria-label="Delete lead"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            {/* CHANGED: Removed delete button from modal header */}
           </div>
         </DialogHeader>
 
@@ -185,10 +174,10 @@ export function LeadDetailModal({
               
 
               
-              {lead.estimatedValue && (
+              {lead.estimatedCost && (
                 <div>
-                  <label className="text-sm font-medium text-gray-700">Estimated Value</label>
-                  <p className="text-sm text-gray-900 mt-1 font-medium">${lead.estimatedValue}</p>
+                  <label className="text-sm font-medium text-gray-700">Estimated Cost</label>
+                  <p className="text-sm text-gray-900 mt-1 font-medium">${lead.estimatedCost}</p>
                 </div>
               )}
             </div>
