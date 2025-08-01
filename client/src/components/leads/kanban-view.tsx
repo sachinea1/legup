@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
 import { LeadDetailModal } from "./lead-detail-modal";
 import { useState, useMemo, useCallback } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query"; // CHANGED: Added React Query imports
 
 interface KanbanViewProps {
   leads: Lead[];
@@ -30,7 +29,6 @@ interface KanbanViewProps {
 
 export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead, onEditLead, onScheduleLead, filters }: KanbanViewProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient(); // CHANGED: Added query client
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [dragState, setDragState] = useState<{
@@ -54,22 +52,19 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     }, {} as Record<string, Lead[]>);
   }, [leads, statusOrder]);
 
-  // CHANGED: Use simple mutation that calls the parent's onUpdateLeadStatus
-  const updateLeadStatusMutation = useMutation({
-    mutationFn: async ({ leadId, status }: { leadId: number; status: string }) => {
-      // Use the parent's update function instead of direct API call
+  // CHANGED: Remove mutation completely - use direct function call
+  const handleStatusUpdate = useCallback(async (leadId: number, status: string) => {
+    try {
       await onUpdateLeadStatus(leadId, status);
-      return { id: leadId, status };
-    },
-    onError: (err) => {
+    } catch (err) {
       console.error("Error updating lead status:", err);
       toast({
-        title: "Error",
+        title: "Error", 
         description: "Failed to update lead status.",
         variant: "destructive",
       });
-    },
-  });
+    }
+  }, [onUpdateLeadStatus, toast]);
 
   // Calculate average time in stage (mock calculation for now)
   const getAverageTimeInStage = (status: string): string => {
@@ -113,12 +108,9 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     
     if (!lead || lead.status === newStatus) return;
 
-    // CHANGED: Simple mutation call - callbacks are in useMutation hook
-    updateLeadStatusMutation.mutate({ 
-      leadId, 
-      status: newStatus 
-    });
-  }, [leads, updateLeadStatusMutation, queryClient]);
+    // CHANGED: Direct function call without complex mutations
+    handleStatusUpdate(leadId, newStatus);
+  }, [leads, handleStatusUpdate]);
 
 
 
