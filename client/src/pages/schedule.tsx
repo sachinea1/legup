@@ -531,7 +531,7 @@ export default function Schedule() {
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
-                                      className={`absolute inset-x-1 inset-y-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out ${
+                                      className={`absolute left-1 right-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out ${
                                         snapshot.isDragging ? 'shadow-2xl scale-110 rotate-3 z-50' : 'hover:shadow-md'
                                       }`}
                                       style={{ 
@@ -539,7 +539,10 @@ export default function Schedule() {
                                         zIndex: snapshot.isDragging ? 1000 : 1,
                                         transform: snapshot.isDragging 
                                           ? `${provided.draggableProps.style?.transform || ''} rotate(3deg) scale(1.1)`
-                                          : provided.draggableProps.style?.transform
+                                          : provided.draggableProps.style?.transform,
+                                        // CHANGED: Calculate height based on appointment duration
+                                        top: '2px',
+                                        height: `${Math.max(36, (appointment.durationMinutes || 60) * 40 / 60 - 4)}px` // 40px per hour minus padding
                                       }}
                                     >
                                       <div className="font-medium truncate">{appointment.customerName}</div>
