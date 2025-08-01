@@ -133,13 +133,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       closed_won: "Completed"
     };
     
-    // Show optimistic feedback immediately
-    toast({
-      title: "Lead moved",
-      description: `${lead.name} moved to ${statusLabels[newStatus as keyof typeof statusLabels]}`,
-    });
-
-    // Update lead status via parent component
+    // Update lead status via parent component (optimistic update will show immediate UI change)
     onUpdateLeadStatus(leadId, newStatus);
   }, [leads, onUpdateLeadStatus, toast]);
 
@@ -453,7 +447,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
 
       {/* Lead Detail Modal */}
       <LeadDetailModal
-        lead={selectedLead}
+        lead={selectedLead || undefined}
         open={!!selectedLead}
         onOpenChange={(open) => !open && setSelectedLead(null)}
         onUpdateLeadStatus={(id, status) => {

@@ -34,15 +34,18 @@ export function useLeads() {
   // Update lead status mutation (specific for status changes)
   const updateStatusMutation = useMutation({
     mutationFn: async (data: { id: number; status: string }) => {
-      return apiRequest("PATCH", `/api/leads/${data.id}/status`, { status: data.status });
+      const response = await apiRequest("PATCH", `/api/leads/${data.id}/status`, { status: data.status });
+      return response.json();
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+    onSuccess: (updatedLead, variables) => {
+      // Update the cache with the exact server response instead of invalidating
+      queryClient.setQueryData(["/api/leads"], (oldData: Lead[] = []) => 
+        oldData.map(lead => 
+          lead.id === variables.id ? updatedLead : lead
+        )
+      );
+      // Only invalidate stats, not the leads cache
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({
-        title: "Status updated",
-        description: `Lead status changed to ${variables.status}`,
-      });
     },
     onError: (error: any) => {
       toast({
@@ -95,7 +98,10 @@ export function useLeads() {
 
   // Helper function to update lead status with optimistic updates
   const updateLeadStatus = async (id: number, status: string) => {
-    // Optimistic update
+    // Store snapshot for potential rollback
+    const previousData = queryClient.getQueryData(["/api/leads"]) as Lead[];
+    
+    // Optimistic update - immediately update UI
     queryClient.setQueryData(["/api/leads"], (oldData: Lead[] = []) => 
       oldData.map(lead => 
         lead.id === id ? { ...lead, status } : lead
@@ -105,8 +111,8 @@ export function useLeads() {
     try {
       await updateStatusMutation.mutateAsync({ id, status });
     } catch (error) {
-      // Revert optimistic update on error
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      // Rollback to previous state on error
+      queryClient.setQueryData(["/api/leads"], previousData);
       throw error;
     }
   };
