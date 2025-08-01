@@ -11,6 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
 import { LeadDetailModal } from "./lead-detail-modal";
 import { useState, useMemo, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query"; // CHANGED: Added React Query imports
+import { apiRequest } from "@/lib/queryClient"; // CHANGED: Added apiRequest import
 
 interface KanbanViewProps {
   leads: Lead[];
@@ -29,6 +31,7 @@ interface KanbanViewProps {
 
 export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead, onEditLead, onScheduleLead, filters }: KanbanViewProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient(); // CHANGED: Added query client
   const [deleteDialog, setDeleteDialog] = useState<{open: boolean; lead?: Lead}>({open: false});
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [dragState, setDragState] = useState<{
@@ -51,6 +54,56 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       return acc;
     }, {} as Record<string, Lead[]>);
   }, [leads, statusOrder]);
+
+  // CHANGED: Calendar-style optimistic mutation for status updates
+  const updateLeadStatusMutation = useMutation({
+    mutationFn: async ({ leadId, status }: { leadId: number; status: string }) => {
+      const response = await apiRequest("PATCH", `/api/leads/${leadId}/status`, { status });
+      return response.json();
+    },
+    onMutate: async ({ leadId, status }) => {
+      // Cancel outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["/api/leads"] });
+
+      // Snapshot the previous value
+      const previousLeads = queryClient.getQueryData(["/api/leads"]);
+
+      // Optimistically update to new value IMMEDIATELY
+      queryClient.setQueryData(["/api/leads"], (old: Lead[] = []) => {
+        return old.map(lead => 
+          lead.id === leadId 
+            ? { ...lead, status }
+            : lead
+        );
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousLeads };
+    },
+    onSuccess: (data) => {
+      // Silently update with server response - no toast to reduce lag
+      queryClient.setQueryData(["/api/leads"], (old: Lead[] = []) => {
+        if (!old) return [data];
+        return old.map(lead => lead.id === data.id ? data : lead);
+      });
+    },
+    onError: (err, variables, context) => {
+      // If mutation fails, roll back to previous state
+      if (context?.previousLeads) {
+        queryClient.setQueryData(["/api/leads"], context.previousLeads);
+      }
+      
+      // Refetch on error to ensure we have correct state
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      
+      console.error("Error updating lead status:", err);
+      toast({
+        title: "Error",
+        description: "Failed to update lead status. Changes have been reverted.",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Calculate average time in stage (mock calculation for now)
   const getAverageTimeInStage = (status: string): string => {
@@ -147,9 +200,9 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       return;
     }
     
-    // CHANGED: Use enhanced mutation instead of parent callback
-    onUpdateLeadStatus(leadId, newStatus);
-  }, [leads, onUpdateLeadStatus, toast]); // CHANGED: Added onUpdateLeadStatus to dependencies
+    // CHANGED: Use calendar-style optimistic mutation directly
+    updateLeadStatusMutation.mutate({ leadId, status: newStatus });
+  }, [leads, updateLeadStatusMutation, toast]); // CHANGED: Updated dependencies for new mutation
 
   // Simplified lead card without stage toggle buttons
 
