@@ -232,19 +232,21 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
             aria-grabbed={snapshot.isDragging}
             aria-label={`Lead ${lead.name}. Use spacebar to lift, arrow keys to move, spacebar to drop.`}
           >
-            {/* Drag Handle */}
+            {/* Drag Handle - CHANGED: Always visible and larger */}
             <div 
               {...provided.dragHandleProps}
-              className={`absolute left-1 top-1/2 transform -translate-y-1/2 z-10 p-1 rounded ${
+              className={`absolute left-1 top-1/2 transform -translate-y-1/2 z-10 p-1 rounded bg-gray-100 hover:bg-gray-200 ${
                 snapshot.isDragging ? "cursor-grabbing" : "cursor-grab"
-              } hover:bg-gray-100 transition-colors`}
+              } transition-colors`}
               aria-label="Drag handle"
+              onClick={(e) => e.stopPropagation()} // CHANGED: Prevent card click when using drag handle
             >
-              <GripVertical className="w-4 h-4 text-gray-400" />
+              <GripVertical className="w-4 h-4 text-gray-500" />
             </div>
 
             <Card
               onClick={(e) => {
+                // CHANGED: Only open modal if not dragging and click wasn't on drag handle
                 if (!snapshot.isDragging && !isDraggedItem) {
                   setSelectedLead(lead);
                 }
