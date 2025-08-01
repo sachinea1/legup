@@ -44,7 +44,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       href: "/leads",
       active: location === "/leads",
       badge: "5",
-      badgeVariant: "bg-amber-500 text-white" as const,
+      badgeVariant: "bg-blue-500 text-white" as const, // CHANGED: Standardized to blue
     },
     {
       icon: Calendar,
@@ -58,7 +58,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       href: "/messages",
       active: location === "/messages",
       badge: "3",
-      badgeVariant: "bg-green-500 text-white" as const,
+      badgeVariant: "bg-blue-500 text-white" as const, // CHANGED: Standardized to blue
     },
     {
       icon: Settings,
@@ -111,14 +111,14 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             <Dialog open={isWidgetOpen} onOpenChange={setIsWidgetOpen}>
               <DialogTrigger asChild>
                 <Button 
-                  className={`w-full bg-green-600 text-white hover:bg-green-700 ${
-                    isCollapsed ? 'px-2' : 'px-4'
+                  className={`w-full bg-gray-200 text-gray-700 hover:bg-gray-300 ${
+                    isCollapsed ? 'px-2' : 'px-4 pl-4'  // CHANGED: Grey background + icon indentation
                   }`}
                   size={isCollapsed ? "sm" : "default"}
-                  title={isCollapsed ? "New Lead" : undefined}
+                  title={isCollapsed ? "Add Leads" : undefined}
                 >
-                  <Plus className="w-4 h-4" />
-                  {!isCollapsed && <span className="ml-2">New Lead</span>}
+                  <Plus className={`w-4 h-4 ${isCollapsed ? 'w-6 h-6' : ''}`} /> {/* CHANGED: Larger icon when collapsed */}
+                  {!isCollapsed && <span className="ml-2">Add Leads</span>} {/* CHANGED: Updated label */}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-md">
@@ -143,12 +143,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   `}
                   title={isCollapsed ? item.label : undefined}
                 >
-                  <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                  <item.icon className={`${isCollapsed ? 'w-6 h-6 text-xl' : 'w-5 h-5 mr-3'}`} /> {/* CHANGED: Larger icons when collapsed */}
                   {!isCollapsed && (
                     <>
                       <span className="flex-1">{item.label}</span>
                       {item.badge && (
-                        <Badge className={`text-xs px-2 py-1 ${item.badgeVariant}`}>
+                        <Badge className={`text-xs px-2 py-1 ${item.active ? 'bg-white text-blue-600' : item.badgeVariant}`}> {/* CHANGED: White badge for active items */}
                           {item.badge}
                         </Badge>
                       )}
@@ -166,12 +166,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   `}
                   title={isCollapsed ? item.label : undefined}
                 >
-                  <item.icon className={`w-5 h-5 ${isCollapsed ? '' : 'mr-3'}`} />
+                  <item.icon className={`${isCollapsed ? 'w-6 h-6 text-xl' : 'w-5 h-5 mr-3'}`} /> {/* CHANGED: Larger icons when collapsed */}
                   {!isCollapsed && (
                     <>
                       <span className="flex-1">{item.label}</span>
                       {item.badge && (
-                        <Badge className={`text-xs px-2 py-1 ${item.badgeVariant}`}>
+                        <Badge className={`text-xs px-2 py-1 ${item.active ? 'bg-white text-blue-600' : item.badgeVariant}`}> {/* CHANGED: White badge for active items */}
                           {item.badge}
                         </Badge>
                       )}

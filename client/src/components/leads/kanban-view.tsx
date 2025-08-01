@@ -105,10 +105,14 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       return;
     }
 
-    // Extract lead ID and validate
+    // CHANGED: Extract lead ID and parse droppable ID with new format
     const leadId = parseInt(draggableId.replace('lead-', ''));
-    const newStatus = destination.droppableId;
-    const sourceStatus = source.droppableId;
+    const newStatus = destination.droppableId.startsWith('status-') 
+      ? destination.droppableId.split('-')[1] 
+      : destination.droppableId;
+    const sourceStatus = source.droppableId.startsWith('status-')
+      ? source.droppableId.split('-')[1]
+      : source.droppableId;
     
     console.log("Moving lead:", leadId, "from", sourceStatus, "to", newStatus);
     
@@ -133,7 +137,17 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       closed_won: "Completed"
     };
     
-    // Update lead status via parent component (optimistic update will show immediate UI change)
+    // CHANGED: Enforce business rule - "Closed" leads can't move backward
+    if (lead.status === "closed_won" && newStatus !== "closed_won") {
+      toast({
+        title: "Action not allowed",
+        description: "Completed leads cannot be moved to previous stages",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // CHANGED: Use enhanced mutation instead of parent callback
     onUpdateLeadStatus(leadId, newStatus);
   }, [leads, onUpdateLeadStatus, toast]); // CHANGED: Added onUpdateLeadStatus to dependencies
 
@@ -348,7 +362,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         </div>
 
         {/* Droppable Column */}
-        <Droppable droppableId={status}>
+        <Droppable droppableId={`status-${status}`}>
           {(provided, snapshot) => (
             <div
               ref={provided.innerRef}

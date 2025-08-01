@@ -31,28 +31,56 @@ export function useLeads() {
     },
   });
 
-  // Update lead status mutation (specific for status changes)
+  // CHANGED: Enhanced status mutation with calendar-style optimistic pattern
   const updateStatusMutation = useMutation({
     mutationFn: async (data: { id: number; status: string }) => {
       const response = await apiRequest("PATCH", `/api/leads/${data.id}/status`, { status: data.status });
       return response.json();
     },
+    onMutate: async ({ id, status }) => {
+      // CHANGED: Cancel outgoing refetches to prevent overwrites
+      await queryClient.cancelQueries({ queryKey: ["/api/leads"] });
+
+      // CHANGED: Snapshot the previous value for rollback
+      const previousLeads = queryClient.getQueryData(["/api/leads"]);
+
+      // CHANGED: Optimistically update immediately for instant UI feedback
+      queryClient.setQueryData(["/api/leads"], (old: Lead[] = []) => 
+        old.map(lead => 
+          lead.id === id ? { ...lead, status } : lead
+        )
+      );
+
+      // CHANGED: Return context for potential rollback
+      return { previousLeads };
+    },
     onSuccess: (updatedLead, variables) => {
-      // Update the cache with the exact server response instead of invalidating
-      queryClient.setQueryData(["/api/leads"], (oldData: Lead[] = []) => 
-        oldData.map(lead => 
+      // CHANGED: Silently update with server response
+      queryClient.setQueryData(["/api/leads"], (old: Lead[] = []) => 
+        old.map(lead => 
           lead.id === variables.id ? updatedLead : lead
         )
       );
-      // Only invalidate stats, not the leads cache
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
+      // CHANGED: Rollback to snapshot on error
+      if (context?.previousLeads) {
+        queryClient.setQueryData(["/api/leads"], context.previousLeads);
+      }
+      
+      // CHANGED: Refetch to ensure correct state
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      
       toast({
         title: "Status update failed",
         description: error?.message || "Failed to update lead status",
         variant: "destructive",
       });
+    },
+    // CHANGED: Always invalidate leads after settled to ensure consistency
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
     },
   });
 
