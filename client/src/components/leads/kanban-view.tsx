@@ -232,13 +232,14 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
             aria-grabbed={snapshot.isDragging}
             aria-label={`Lead ${lead.name}. Use spacebar to lift, arrow keys to move, spacebar to drop.`}
           >
-            {/* Drag Handle - CHANGED: Fixed error by removing invalid onClick on drag handle */}
+            {/* Drag Handle - CHANGED: Large visible handle */}
             <div 
               {...provided.dragHandleProps}
               className={`absolute left-2 top-2 z-20 p-2 rounded-md bg-gray-200 border border-gray-300 shadow-sm hover:bg-gray-300 ${
                 snapshot.isDragging ? "cursor-grabbing" : "cursor-grab"
               } transition-all`}
               aria-label="Drag handle"
+              onClick={(e) => e.stopPropagation()}
               title="Drag to move"
             >
               <GripVertical className="w-4 h-4 text-gray-700" />
