@@ -116,8 +116,8 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
 
   // Simplified lead card without stage toggle buttons
 
-  // Memoized Lead Card component for performance
-  const LeadCard = useMemo(() => ({ lead, index }: { lead: Lead; index: number }) => {
+  // CHANGED: Remove memoization - it causes issues with React Beautiful DND
+  const LeadCard = ({ lead, index }: { lead: Lead; index: number }) => {
     const serviceTheme = getServiceTypeTheme(lead.serviceType || "regular");
     const isDraggedItem = dragState.draggedLeadId === lead.id;
 
@@ -131,6 +131,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
           <div
             ref={provided.innerRef}
             {...provided.draggableProps}
+            {...provided.dragHandleProps}
             className={`mb-3 select-none transition-all duration-150 relative ${
               snapshot.isDragging 
                 ? "scale-105 rotate-1 z-50 opacity-90" 
@@ -142,18 +143,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
             aria-grabbed={snapshot.isDragging}
             aria-label={`Lead ${lead.name}. Use spacebar to lift, arrow keys to move, spacebar to drop.`}
           >
-            {/* Drag Handle - CHANGED: Large visible handle */}
-            <div 
-              {...provided.dragHandleProps}
-              className={`absolute left-2 top-2 z-20 p-2 rounded-md bg-gray-200 border border-gray-300 shadow-sm hover:bg-gray-300 ${
-                snapshot.isDragging ? "cursor-grabbing" : "cursor-grab"
-              } transition-all`}
-              aria-label="Drag handle"
-              onClick={(e) => e.stopPropagation()}
-              title="Drag to move"
-            >
-              <GripVertical className="w-4 h-4 text-gray-700" />
-            </div>
+            {/* CHANGED: Remove separate drag handle - use entire card */}
 
             <Card
               onClick={(e) => {
@@ -162,7 +152,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
                   setSelectedLead(lead);
                 }
               }}
-              className={`relative pl-12 ${
+              className={`relative ${
                 snapshot.isDragging 
                   ? "shadow-2xl bg-blue-50 border-blue-300 ring-2 ring-blue-200" 
                   : "hover:shadow-md hover:bg-gray-50 hover:border-gray-300"
@@ -295,7 +285,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
         )}
       </Draggable>
     );
-  }, [dragState.draggedLeadId, isUpdating, setSelectedLead]);
+  };
 
   const KanbanColumn = ({ status }: { status: string }) => {
     const statusTheme = getStatusTheme(status);
