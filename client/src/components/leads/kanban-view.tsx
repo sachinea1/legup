@@ -12,7 +12,6 @@ import { DeleteConfirmationDialog } from "./delete-confirmation-dialog";
 import { LeadDetailModal } from "./lead-detail-modal";
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query"; // CHANGED: Added React Query imports
-import { apiRequest } from "@/lib/queryClient"; // CHANGED: Added apiRequest import
 
 interface KanbanViewProps {
   leads: Lead[];
@@ -55,51 +54,18 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     }, {} as Record<string, Lead[]>);
   }, [leads, statusOrder]);
 
-  // CHANGED: Calendar-style optimistic mutation for status updates
+  // CHANGED: Use simple mutation that calls the parent's onUpdateLeadStatus
   const updateLeadStatusMutation = useMutation({
     mutationFn: async ({ leadId, status }: { leadId: number; status: string }) => {
-      const response = await apiRequest("PATCH", `/api/leads/${leadId}/status`, { status });
-      return response.json();
+      // Use the parent's update function instead of direct API call
+      await onUpdateLeadStatus(leadId, status);
+      return { id: leadId, status };
     },
-    onMutate: async ({ leadId, status }) => {
-      // Cancel outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ["/api/leads"] });
-
-      // Snapshot the previous value
-      const previousLeads = queryClient.getQueryData(["/api/leads"]);
-
-      // Optimistically update to new value IMMEDIATELY
-      queryClient.setQueryData(["/api/leads"], (old: Lead[] = []) => {
-        return old.map(lead => 
-          lead.id === leadId 
-            ? { ...lead, status }
-            : lead
-        );
-      });
-
-      // Return a context object with the snapshotted value
-      return { previousLeads };
-    },
-    onSuccess: (data) => {
-      // Silently update with server response - no toast to reduce lag
-      queryClient.setQueryData(["/api/leads"], (old: Lead[] = []) => {
-        if (!old) return [data];
-        return old.map(lead => lead.id === data.id ? data : lead);
-      });
-    },
-    onError: (err, variables, context) => {
-      // If mutation fails, roll back to previous state
-      if (context?.previousLeads) {
-        queryClient.setQueryData(["/api/leads"], context.previousLeads);
-      }
-      
-      // Refetch on error to ensure we have correct state
-      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      
+    onError: (err) => {
       console.error("Error updating lead status:", err);
       toast({
         title: "Error",
-        description: "Failed to update lead status. Changes have been reverted.",
+        description: "Failed to update lead status.",
         variant: "destructive",
       });
     },
