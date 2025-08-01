@@ -200,7 +200,7 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
       return;
     }
     
-    // CHANGED: Use calendar-style optimistic mutation directly
+    // CHANGED: Use calendar-style optimistic mutation directly  
     updateLeadStatusMutation.mutate({ leadId, status: newStatus });
   }, [leads, updateLeadStatusMutation, toast]); // CHANGED: Updated dependencies for new mutation
 
