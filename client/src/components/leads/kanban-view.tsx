@@ -147,34 +147,10 @@ export function KanbanView({ leads, onUpdateLeadStatus, isUpdating, onDeleteLead
     
     if (!lead || lead.status === newStatus) return;
 
-    // CHANGED: Direct mutation call matching calendar's pattern
+    // CHANGED: Simple mutation call - callbacks are in useMutation hook
     updateLeadStatusMutation.mutate({ 
       leadId, 
       status: newStatus 
-    }, {
-      onMutate: async ({ leadId, status }) => {
-        // CHANGED: Cancel queries and snapshot state
-        await queryClient.cancelQueries({ queryKey: ["/api/leads"] });
-        const previousLeads = queryClient.getQueryData(["/api/leads"]);
-        
-        // CHANGED: Immediate optimistic update
-        queryClient.setQueryData(["/api/leads"], (old: Lead[] = []) => 
-          old.map(lead => lead.id === leadId ? { ...lead, status } : lead)
-        );
-        
-        return { previousLeads };
-      },
-      onError: (err, variables, context) => {
-        // CHANGED: Rollback on error
-        if (context?.previousLeads) {
-          queryClient.setQueryData(["/api/leads"], context.previousLeads);
-        }
-        queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      },
-      onSettled: () => {
-        // CHANGED: Ensure data consistency
-        queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
-      }
     });
   }, [leads, updateLeadStatusMutation, queryClient]);
 

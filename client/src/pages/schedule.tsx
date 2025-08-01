@@ -552,12 +552,12 @@ export default function Schedule() {
                                       }`}
                                       style={{ 
                                         ...provided.draggableProps.style,
-                                        height: `${getAppointmentHeight(appointment)}px`, // CHANGED: Dynamic height based on duration
-                                        top: `${getAppointmentPosition(appointment)}%`, // CHANGED: Position within slot
-                                        zIndex: snapshot.isDragging ? 1000 : 1,
-                                        transform: snapshot.isDragging 
-                                          ? `${provided.draggableProps.style?.transform || ''} rotate(3deg) scale(1.1)`
-                                          : provided.draggableProps.style?.transform
+                                        // CHANGED: Remove custom positioning during drag to prevent conflicts
+                                        ...(!snapshot.isDragging && {
+                                          height: `${getAppointmentHeight(appointment)}px`,
+                                          top: `${getAppointmentPosition(appointment)}%`
+                                        }),
+                                        zIndex: snapshot.isDragging ? 1000 : 1
                                       }}
                                     >
                                       <div className="font-medium truncate">{appointment.customerName}</div>
