@@ -138,7 +138,7 @@ export default function Schedule() {
       // Snapshot the previous value
       const previousAppointments = queryClient.getQueryData(["/api/appointments"]);
 
-      // Optimistically update to new value
+      // Optimistically update to new value IMMEDIATELY
       queryClient.setQueryData(["/api/appointments"], (old: any[]) => {
         if (!old) return [];
         return old.map(apt => 
@@ -156,15 +156,10 @@ export default function Schedule() {
       return { previousAppointments };
     },
     onSuccess: (data) => {
-      // Update with actual server response to ensure consistency
+      // Silently update with server response - no toast to reduce lag
       queryClient.setQueryData(["/api/appointments"], (old: any[]) => {
         if (!old) return [data];
         return old.map(apt => apt.id === data.id ? data : apt);
-      });
-      
-      toast({
-        title: "Appointment Updated",
-        description: "The appointment has been successfully rescheduled.",
       });
     },
     onError: (err, variables, context) => {
@@ -516,7 +511,7 @@ export default function Schedule() {
                           <div
                             ref={provided.innerRef}
                             {...provided.droppableProps}
-                            className={`border-r border-gray-200 last:border-r-0 relative transition-all duration-200 ${
+                            className={`border-r border-gray-200 last:border-r-0 relative transition-all duration-75 ${
                               snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
                             }`}
                             style={{ minHeight: '40px' }}
@@ -536,7 +531,7 @@ export default function Schedule() {
                                       ref={provided.innerRef}
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
-                                      className={`absolute inset-x-1 inset-y-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-150 ease-out ${
+                                      className={`absolute inset-x-1 inset-y-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out ${
                                         snapshot.isDragging ? 'shadow-2xl scale-110 rotate-3 z-50' : 'hover:shadow-md'
                                       }`}
                                       style={{ 
@@ -590,7 +585,7 @@ export default function Schedule() {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`border border-gray-200 rounded-lg p-3 min-h-[60px] flex items-center transition-all duration-200 ${
+                        className={`border border-gray-200 rounded-lg p-3 min-h-[60px] flex items-center transition-all duration-75 ${
                           snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300 shadow-md scale-[1.02]' : 'hover:bg-gray-50'
                         }`}
                       >
@@ -612,7 +607,7 @@ export default function Schedule() {
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
-                                    className={`p-3 rounded-lg border ${theme} cursor-move transition-all duration-200 min-w-[250px] ${
+                                    className={`p-3 rounded-lg border ${theme} cursor-move transition-all duration-100 min-w-[250px] ${
                                       snapshot.isDragging ? 'rotate-2 shadow-xl scale-105 z-50' : 'hover:shadow-md'
                                     }`}
                                   >
