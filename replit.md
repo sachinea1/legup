@@ -48,12 +48,17 @@ Preferred communication style: Simple, everyday language.
 - **Follow-up Automation**: Scheduled SMS follow-ups using cron jobs
 - **Drag-and-Drop Kanban**: React Beautiful DND implementation with visual feedback and optimistic updates
 - **Functional Editing**: Complete CRUD operations with modal edit forms for lead data management
+- **Dynamic Service Integration**: Lead forms adapt to organization's custom service offerings with pricing display
+- **Real-time Notifications**: Navigation sidebar shows actual counts for new leads and unread messages
 
 ### Organization Management
 - **Multi-tenant Architecture**: Complete data isolation between organizations
 - **Team Collaboration**: Invite system for adding team members with role-based permissions
 - **Organization Settings**: Configurable business hours, services, and company information
 - **Onboarding Flow**: Guided setup for new organizations
+- **Custom Service Management**: Organizations can define custom services with flexible pricing models (fixed/per-room/per-sqft)
+- **Location-based Service Areas**: Service radius configuration for automatic job acceptance criteria
+- **Custom Lead Fields**: Organizations can add custom fields to capture specific information during lead intake
 
 ### Communication System
 - **SMS Integration**: Twilio-powered SMS sending and receiving
@@ -121,5 +126,12 @@ Preferred communication style: Simple, everyday language.
 - **API Development**: tsx for TypeScript execution in development
 - **Database Migrations**: Drizzle push for schema synchronization
 - **Type Safety**: Shared schema types between frontend and backend
+
+### Recent Enhancements (January 2024)
+- **Enhanced Drag-and-Drop Calendar**: Improved visual feedback with better card sizing during drag operations and multi-slot highlighting for appointment duration
+- **Real Data Integration**: Replaced all mock data with authentic organization-specific data across dashboard, notifications, and sidebar statistics
+- **Custom Service System**: Complete implementation of organization-customizable services with pricing management and dynamic lead form adaptation
+- **Improved Navigation**: Clickable dashboard headers, real-time notification badges, and organization-aware quick statistics
+- **Location Management**: Service radius configuration with geographic job acceptance criteria
 
 The application is designed to scale horizontally with proper organization isolation and can handle multiple cleaning companies on a single deployment while maintaining complete data separation and security.

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
 import { 
   BarChart3, 
   Users, 
@@ -31,6 +32,33 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const [isWidgetOpen, setIsWidgetOpen] = useState(false);
   const { user, logoutMutation } = useAuth();
 
+  // Fetch real data for notifications and quick stats
+  const { data: stats } = useQuery({
+    queryKey: ["/api/stats"],
+    staleTime: 30000, // Cache for 30 seconds
+    enabled: !!user, // Only fetch when user is available
+  });
+
+  const { data: messages = [] } = useQuery({
+    queryKey: ["/api/messages"],
+    staleTime: 60000, // Cache for 1 minute
+    enabled: !!user, // Only fetch when user is available
+  });
+
+  const { data: appointments = [] } = useQuery({
+    queryKey: ["/api/appointments"],
+    staleTime: 60000, // Cache for 1 minute
+    enabled: !!user, // Only fetch when user is available
+  });
+
+  // Calculate real notification counts
+  const unreadMessages = Array.isArray(messages) ? messages.filter((msg: any) => msg.direction === 'inbound' && !msg.read).length : 0;
+  const todayAppointments = Array.isArray(appointments) ? appointments.filter((apt: any) => {
+    const today = new Date().toISOString().split('T')[0];
+    const aptDate = new Date(apt.scheduledDate).toISOString().split('T')[0];
+    return aptDate === today;
+  }).length : 0;
+
   const menuItems = [
     {
       icon: BarChart3,
@@ -43,7 +71,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       label: "Leads",
       href: "/leads",
       active: location === "/leads",
-      badge: "5",
+      badge: stats?.newLeads > 0 ? stats.newLeads.toString() : undefined,
       badgeVariant: "bg-blue-500 text-white" as const, // CHANGED: Standardized to blue
     },
     {
@@ -57,7 +85,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       label: "Messages",
       href: "/messages",
       active: location === "/messages",
-      badge: "3",
+      badge: unreadMessages > 0 ? unreadMessages.toString() : undefined,
       badgeVariant: "bg-blue-500 text-white" as const, // CHANGED: Standardized to blue
     },
     {
@@ -190,15 +218,17 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">Today's Bookings:</span>
-                    <span className="font-semibold text-blue-600">8</span>
+                    <span className="font-semibold text-blue-600">{todayAppointments}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Pending Leads:</span>
-                    <span className="font-semibold text-amber-600">12</span>
+                    <span className="font-semibold text-amber-600">{stats?.newLeads || 0}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">This Week Revenue:</span>
-                    <span className="font-semibold text-green-600">$2,450</span>
+                    <span className="font-semibold text-green-600">
+                      ${stats?.monthlyRevenue ? Math.round(stats.monthlyRevenue / 4).toLocaleString() : '0'}
+                    </span>
                   </div>
                 </div>
               </CardContent>

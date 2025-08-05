@@ -59,6 +59,7 @@ export default function Schedule() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [draggedAppointment, setDraggedAppointment] = useState<Appointment | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
 
   // Fetch appointments
   const { data: appointments = [], isLoading: appointmentsLoading } = useQuery<Appointment[]>({
@@ -126,6 +127,33 @@ export default function Schedule() {
   const getAppointmentTheme = (serviceType: string) => {
     const theme = getServiceTypeTheme(serviceType);
     return theme.color;
+  };
+
+  // Get highlighted slots for drag preview
+  const getHighlightedSlots = (appointment: Appointment | null) => {
+    if (!appointment || !isDragging) return [];
+    
+    const duration = appointment.duration || 120; // Default 2 hours in minutes
+    const slotsNeeded = Math.max(1, Math.ceil(duration / 30)); // Each slot is 30 minutes
+    
+    // Return all slots that would be occupied by the appointment
+    // This is a simplified version - ideally would track actual hover position
+    const slots: string[] = [];
+    
+    // For now, highlight multiple consecutive slots to show duration
+    // In a real implementation, you would track the exact drop target position
+    if (dragOverSlot) {
+      const [dayId, timeSlot] = dragOverSlot.split('-', 2);
+      const timeIndex = timeSlots.indexOf(timeSlot);
+      
+      if (timeIndex >= 0) {
+        for (let i = 0; i < slotsNeeded && timeIndex + i < timeSlots.length; i++) {
+          slots.push(`${dayId}-${timeSlots[timeIndex + i]}`);
+        }
+      }
+    }
+    
+    return slots;
   };
 
   // Navigation functions
@@ -523,14 +551,26 @@ export default function Schedule() {
                     
                     return (
                       <Droppable key={`${dayId}-${time}`} droppableId={`time-${dayId}-${time}`}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
+                        {(provided, snapshot) => {
+                          const isHighlighted = snapshot.isDraggingOver || 
+                            (isDragging && getHighlightedSlots(draggedAppointment).includes(`${dayId}-${time}`));
+                          
+                          // Track hover for multi-slot highlighting
+                          if (snapshot.isDraggingOver && !dragOverSlot) {
+                            setDragOverSlot(`${dayId}-${time}`);
+                          }
+                          
+                          return (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
                             className={`border-r border-gray-200 last:border-r-0 relative transition-all duration-75 time-grid-row ${
-                              snapshot.isDraggingOver ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'
+                              isHighlighted ? 'bg-blue-100 border-blue-400 shadow-sm' : 'hover:bg-gray-50'
                             }`}
                             style={{ height: '40px', minHeight: '40px', maxHeight: '40px' }} // CHANGED: Fixed height
+                            onMouseEnter={() => {
+                              if (isDragging) setDragOverSlot(`${dayId}-${time}`);
+                            }}
                           >
                             {dayAppointments.map((appointment, index) => {
                               const assignedStaffMember = mockStaff.find(s => s.id.toString() === (appointment.assignedCleaner || "unassigned"));
@@ -548,14 +588,21 @@ export default function Schedule() {
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
                                       className={`absolute inset-x-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out time-grid-appointment ${
-                                        snapshot.isDragging ? 'shadow-2xl scale-110 rotate-3 z-50 dragging' : 'hover:shadow-md'
+                                        snapshot.isDragging ? 'shadow-xl z-50 opacity-90' : 'hover:shadow-md'
                                       }`}
                                       style={{ 
                                         ...provided.draggableProps.style,
-                                        // CHANGED: Remove custom positioning during drag to prevent conflicts
+                                        // Maintain full size during drag and improve positioning
                                         ...(!snapshot.isDragging && {
                                           height: `${getAppointmentHeight(appointment)}px`,
                                           top: `${getAppointmentPosition(appointment)}%`
+                                        }),
+                                        // Keep original size during drag
+                                        ...(snapshot.isDragging && {
+                                          minWidth: '180px',
+                                          width: 'auto',
+                                          height: '60px',
+                                          transform: provided.draggableProps.style?.transform,
                                         }),
                                         zIndex: snapshot.isDragging ? 1000 : 1
                                       }}
@@ -576,8 +623,9 @@ export default function Schedule() {
                               );
                             })}
                             {provided.placeholder}
-                          </div>
-                        )}
+                            </div>
+                          );
+                        }}
                       </Droppable>
                     );
                   })}
@@ -626,7 +674,7 @@ export default function Schedule() {
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
                                     className={`p-3 rounded-lg border ${theme} cursor-move transition-all duration-100 min-w-[250px] ${
-                                      snapshot.isDragging ? 'rotate-2 shadow-xl scale-105 z-50' : 'hover:shadow-md'
+                                      snapshot.isDragging ? 'shadow-xl scale-105 z-50 opacity-90' : 'hover:shadow-md'
                                     }`}
                                   >
                                     <div className="font-medium">{appointment.customerName}</div>
