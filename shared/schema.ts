@@ -60,6 +60,7 @@ export const leads = pgTable("leads", {
   priority: text("priority").default("normal"), // low, normal, high
   notes: text("notes"),
   estimatedCost: integer("estimated_cost"),
+  source: text("source").default("widget"), // widget, manual, phone, etc.
 
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -301,6 +302,7 @@ export const passwordResetSchema = z.object({
 // Organization onboarding schemas
 export const organizationSetupSchema = z.object({
   name: z.string().min(1, "Company name is required"),
+  slug: z.string().min(1, "Slug is required"),
   address: z.string().optional(),
   phone: z.string().optional(),
   timezone: z.string().default("America/New_York"),

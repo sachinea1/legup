@@ -37,14 +37,14 @@ class FollowUpJob {
     for (const followUp of pendingFollowUps) {
       try {
         if (followUp.type === "sms" && followUp.leadId) {
-          const lead = await storage.getLead(followUp.leadId);
+          const lead = await storage.getLead(followUp.leadId, adminUser?.id || 1);
           
           if (lead && lead.phone) {
             let message = followUp.message;
             
             // Generate personalized follow-up message if none exists
             if (!message) {
-              message = await openaiService.generateFollowUpMessage(lead);
+              message = await openaiService.generateFollowUpMessage(lead, lead.organizationId || null);
             }
 
             if (message) {
@@ -80,7 +80,7 @@ class FollowUpJob {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
 
     for (const lead of leads) {
-      if (new Date(lead.createdAt) < twoHoursAgo) {
+      if (lead.createdAt && new Date(lead.createdAt) < twoHoursAgo) {
         // Check if this lead already has pending follow-ups
         const existingFollowUps = await storage.getPendingFollowUps();
         const hasExistingFollowUp = existingFollowUps.some(f => f.leadId === lead.id);

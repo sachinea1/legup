@@ -91,9 +91,9 @@ Be helpful, professional, and concise. If the message is unclear or seems urgent
     }
   }
 
-  async generateFollowUpMessage(lead: Lead): Promise<string> {
+  async generateFollowUpMessage(lead: Lead, organizationId?: number | null): Promise<string> {
     try {
-      const timeAgo = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60));
+      const timeAgo = Math.floor((Date.now() - new Date(lead.createdAt || new Date()).getTime()) / (1000 * 60 * 60));
       const attemptNumber = 1; // This could be tracked in the database
 
       const prompt = `You are creating a follow-up message for a cleaning service lead who has not responded to initial contact.
