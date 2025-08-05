@@ -486,24 +486,27 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics
-  async getLeadStats(ownerId: number): Promise<{
+  async getLeadStats(organizationId: number): Promise<{
     totalLeads: number;
     newLeads: number;
     conversionRate: number;
     activeBookings: number;
     monthlyRevenue: number;
   }> {
-    const allLeads = await db.select().from(leads).where(eq(leads.ownerId, ownerId));
+    const allLeads = await db.select().from(leads).where(eq(leads.organizationId, organizationId));
     const newLeads = allLeads.filter(lead => lead.status === "new");
-    const bookedLeads = allLeads.filter(lead => lead.status === "booked" || lead.status === "completed");
+    const bookedLeads = allLeads.filter(lead => lead.status === "closed_won" || lead.status === "appointment_set");
     
     const activeAppointments = await db
       .select()
       .from(appointments)
       .where(
-        or(
-          eq(appointments.status, "pending"),
-          eq(appointments.status, "confirmed")
+        and(
+          eq(appointments.organizationId, organizationId),
+          or(
+            eq(appointments.status, "pending"),
+            eq(appointments.status, "confirmed")
+          )
         )
       );
 

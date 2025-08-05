@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { User, Building2, Users, Shield, CreditCard, Settings, Trash2, UserPlus, Key } from "lucide-react";
+import { User, Building2, Users, Shield, CreditCard, Settings, Trash2, UserPlus, Key, Wrench } from "lucide-react";
+import { ServicesSettings } from "@/components/settings/services-settings";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -241,7 +242,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="personal" className="flex items-center space-x-2">
             <User className="h-4 w-4" />
             <span>Personal</span>
@@ -250,6 +251,12 @@ export default function SettingsPage() {
             <TabsTrigger value="organization" className="flex items-center space-x-2">
               <Building2 className="h-4 w-4" />
               <span>Organization</span>
+            </TabsTrigger>
+          )}
+          {canManageOrganization && (
+            <TabsTrigger value="services" className="flex items-center space-x-2">
+              <Wrench className="h-4 w-4" />
+              <span>Services</span>
             </TabsTrigger>
           )}
           {canManageTeam && (
@@ -451,6 +458,17 @@ export default function SettingsPage() {
                 </Form>
               </CardContent>
             </Card>
+          </TabsContent>
+        )}
+
+        {/* Services Settings */}
+        {canManageOrganization && (
+          <TabsContent value="services" className="space-y-6">
+            <ServicesSettings 
+              organization={organization}
+              onUpdate={(data) => updateCompanyMutation.mutate(data)}
+              isUpdating={updateCompanyMutation.isPending}
+            />
           </TabsContent>
         )}
 

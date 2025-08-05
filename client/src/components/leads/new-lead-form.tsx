@@ -1,11 +1,14 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useAuth } from "@/hooks/use-auth";
+import { apiRequest } from "@/lib/queryClient";
 import type { InsertLead } from "@shared/schema";
 import { manualLeadSchema } from "@shared/schema";
 
@@ -15,6 +18,21 @@ interface NewLeadFormProps {
 }
 
 export function NewLeadForm({ onSubmit, isLoading }: NewLeadFormProps) {
+  const { user } = useAuth();
+
+  // Fetch organization data to get custom services
+  const { data: organization } = useQuery({
+    queryKey: ["/api/organizations", user?.organizationId],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/organizations/${user?.organizationId}`);
+      return await res.json();
+    },
+    enabled: !!user?.organizationId,
+  });
+
+  const customServices = organization?.settings?.customServices?.filter((s: any) => s.isActive) || [];
+  const customFields = organization?.settings?.customFields?.filter((f: any) => f.isActive) || [];
+
   const form = useForm<InsertLead>({
     resolver: zodResolver(manualLeadSchema),
     defaultValues: {
@@ -22,11 +40,10 @@ export function NewLeadForm({ onSubmit, isLoading }: NewLeadFormProps) {
       phone: "",
       email: "",
       address: "",
-      serviceType: "regular",
+      serviceType: customServices.length > 0 ? customServices[0]?.name || "regular" : "regular",
       rooms: "",
       status: "new",
       priority: "normal",
-
       notes: "",
       estimatedValue: undefined,
     },
@@ -100,10 +117,22 @@ export function NewLeadForm({ onSubmit, isLoading }: NewLeadFormProps) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="regular">Regular Cleaning</SelectItem>
-                    <SelectItem value="deep">Deep Cleaning</SelectItem>
-                    <SelectItem value="moveout">Move-out Cleaning</SelectItem>
-                    <SelectItem value="commercial">Commercial Cleaning</SelectItem>
+                    {customServices.length > 0 ? (
+                      customServices.map((service: any) => (
+                        <SelectItem key={service.id} value={service.name}>
+                          {service.name} - ${service.basePrice}
+                          {service.priceType === 'per_room' ? '/room' : 
+                           service.priceType === 'per_sqft' ? '/sqft' : ''}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="regular">Regular Cleaning</SelectItem>
+                        <SelectItem value="deep">Deep Cleaning</SelectItem>
+                        <SelectItem value="moveout">Move-out Cleaning</SelectItem>
+                        <SelectItem value="commercial">Commercial Cleaning</SelectItem>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -188,6 +217,49 @@ export function NewLeadForm({ onSubmit, isLoading }: NewLeadFormProps) {
             </FormItem>
           )}
         />
+
+        {/* Custom Fields */}
+        {customFields.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="text-sm font-medium text-gray-700">Additional Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {customFields.map((field: any) => (
+                <div key={field.id}>
+                  <Label className="text-sm font-medium">
+                    {field.name} {field.required && <span className="text-red-500">*</span>}
+                  </Label>
+                  {field.type === 'text' && (
+                    <Input
+                      placeholder={`Enter ${field.name.toLowerCase()}`}
+                      className="mt-1"
+                    />
+                  )}
+                  {field.type === 'number' && (
+                    <Input
+                      type="number"
+                      placeholder={`Enter ${field.name.toLowerCase()}`}
+                      className="mt-1"
+                    />
+                  )}
+                  {field.type === 'select' && field.options && (
+                    <Select>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder={`Select ${field.name.toLowerCase()}`} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {field.options.map((option: string) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Notes */}
         <FormField

@@ -14,6 +14,28 @@ export const organizations = pgTable("organizations", {
     defaultServices?: string[];
     address?: string;
     phone?: string;
+    serviceRadius?: number; // radius in miles
+    location?: {
+      address: string;
+      lat: number;
+      lng: number;
+    };
+    customServices?: Array<{
+      id: string;
+      name: string;
+      basePrice: number;
+      priceType: 'fixed' | 'per_room' | 'per_sqft';
+      description?: string;
+      isActive: boolean;
+    }>;
+    customFields?: Array<{
+      id: string;
+      name: string;
+      type: 'text' | 'select' | 'number';
+      options?: string[]; // for select type
+      required: boolean;
+      isActive: boolean;
+    }>;
   }>(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -308,6 +330,28 @@ export const organizationSetupSchema = z.object({
   timezone: z.string().default("America/New_York"),
   businessHours: z.array(z.string()).default(["09:00-17:00"]),
   defaultServices: z.array(z.string()).default(["regular", "deep", "moveout"]),
+  serviceRadius: z.number().optional(),
+  location: z.object({
+    address: z.string(),
+    lat: z.number(),
+    lng: z.number(),
+  }).optional(),
+  customServices: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    basePrice: z.number(),
+    priceType: z.enum(['fixed', 'per_room', 'per_sqft']),
+    description: z.string().optional(),
+    isActive: z.boolean(),
+  })).optional(),
+  customFields: z.array(z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.enum(['text', 'select', 'number']),
+    options: z.array(z.string()).optional(),
+    required: z.boolean(),
+    isActive: z.boolean(),
+  })).optional(),
 });
 
 export const inviteTeamMemberSchema = z.object({

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, TrendingUp, Calendar, DollarSign } from "lucide-react";
+import { Link } from "wouter";
 
 export function StatsCards() {
   const { data: stats, isLoading } = useQuery({
@@ -37,6 +38,8 @@ export function StatsCards() {
       icon: Users,
       iconBg: "bg-blue-100",
       iconColor: "text-blue-600",
+      clickable: true,
+      href: "/leads",
     },
     {
       title: "Conversion Rate",
@@ -66,22 +69,29 @@ export function StatsCards() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {statsData.map((stat, index) => (
-        <Card key={index} className="border border-gray-200">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm">{stat.title}</p>
-                <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-                <p className="text-green-600 text-sm mt-2">{stat.change}</p>
-              </div>
-              <div className={`${stat.iconBg} p-3 rounded-lg`}>
-                <stat.icon className={`${stat.iconColor} w-6 h-6`} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+      {statsData.map((stat, index) => {
+        const CardWrapper = stat.clickable && stat.href ? Link : 'div';
+        const cardProps = stat.clickable && stat.href ? { to: stat.href } : {};
+        
+        return (
+          <CardWrapper key={index} {...cardProps} className={stat.clickable ? "cursor-pointer" : ""}>
+            <Card className={`border border-gray-200 ${stat.clickable ? 'hover:shadow-md transition-shadow duration-200' : ''}`}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 text-sm">{stat.title}</p>
+                    <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-green-600 text-sm mt-2">{stat.change}</p>
+                  </div>
+                  <div className={`${stat.iconBg} p-3 rounded-lg`}>
+                    <stat.icon className={`${stat.iconColor} w-6 h-6`} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </CardWrapper>
+        );
+      })}
     </div>
   );
 }

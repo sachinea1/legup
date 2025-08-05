@@ -580,21 +580,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/organizations/:id", authenticateToken, async (req, res) => {
     try {
       const { id } = req.params;
+      
+      // Handle both simple and complex settings updates
       const updateSchema = z.object({
-        name: z.string().min(1, "Company name is required"),
+        name: z.string().min(1, "Company name is required").optional(),
         timezone: z.string().optional(),
         businessHours: z.string().optional(),
         defaultServices: z.string().optional(),
-      }).transform(data => ({
-        name: data.name,
-        settings: {
-          timezone: data.timezone,
-          businessHours: data.businessHours ? [data.businessHours] : undefined,
-          defaultServices: data.defaultServices ? data.defaultServices.split(',').map(s => s.trim()) : undefined,
-        }
-      }));
-      
-      const validatedData = updateSchema.parse(req.body);
+        settings: z.object({
+          businessHours: z.array(z.string()).optional(),
+          timezone: z.string().optional(),
+          defaultServices: z.array(z.string()).optional(),
+          address: z.string().optional(),
+          phone: z.string().optional(),
+          serviceRadius: z.number().optional(),
+          location: z.object({
+            address: z.string(),
+            lat: z.number(),
+            lng: z.number(),
+          }).optional(),
+          customServices: z.array(z.object({
+            id: z.string(),
+            name: z.string(),
+            basePrice: z.number(),
+            priceType: z.enum(['fixed', 'per_room', 'per_sqft']),
+            description: z.string().optional(),
+            isActive: z.boolean(),
+          })).optional(),
+          customFields: z.array(z.object({
+            id: z.string(),
+            name: z.string(),
+            type: z.enum(['text', 'select', 'number']),
+            options: z.array(z.string()).optional(),
+            required: z.boolean(),
+            isActive: z.boolean(),
+          })).optional(),
+        }).optional(),
+      });
+
+      const data = updateSchema.parse(req.body);
       
       // Check if user belongs to this organization and has permission
       const user = await storage.getUser(req.user!.id);
@@ -602,7 +626,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: "Access denied" });
       }
 
+      // Get current organization to merge settings
+      const currentOrg = await storage.getOrganization(parseInt(id));
+      if (!currentOrg) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
 
+      // Prepare update data
+      const validatedData: any = {};
+      
+      if (data.name) {
+        validatedData.name = data.name;
+      }
+
+      // Merge settings
+      const currentSettings = currentOrg.settings || {};
+      
+      if (data.settings) {
+        validatedData.settings = {
+          ...currentSettings,
+          ...data.settings,
+        };
+      } else {
+        // Legacy format support
+        const legacySettings: any = { ...currentSettings };
+        
+        if (data.timezone) legacySettings.timezone = data.timezone;
+        if (data.businessHours) legacySettings.businessHours = [data.businessHours];
+        if (data.defaultServices) {
+          legacySettings.defaultServices = data.defaultServices.split(',').map(s => s.trim());
+        }
+        
+        if (Object.keys(legacySettings).length > 0) {
+          validatedData.settings = legacySettings;
+        }
+      }
 
       const updatedOrganization = await storage.updateOrganization(parseInt(id), validatedData);
       res.json(updatedOrganization);
@@ -1063,7 +1121,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get dashboard stats
   app.get("/api/stats", authenticateToken, async (req, res) => {
     try {
-      const stats = await storage.getLeadStats(req.user!.id);
+      const user = await storage.getUser(req.user!.id);
+      if (!user?.organizationId) {
+        return res.status(400).json({ error: "User not associated with an organization" });
+      }
+      const stats = await storage.getLeadStats(user.organizationId);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch stats" });
