@@ -131,25 +131,19 @@ export default function Schedule() {
 
   // Get highlighted slots for drag preview
   const getHighlightedSlots = (appointment: Appointment | null) => {
-    if (!appointment || !isDragging) return [];
+    if (!appointment || !isDragging || !dragOverSlot) return [];
     
     const duration = appointment.duration || 120; // Default 2 hours in minutes
     const slotsNeeded = Math.max(1, Math.ceil(duration / 30)); // Each slot is 30 minutes
     
-    // Return all slots that would be occupied by the appointment
-    // This is a simplified version - ideally would track actual hover position
     const slots: string[] = [];
+    const [dayId, timeSlot] = dragOverSlot.split('-', 2);
+    const timeIndex = timeSlots.indexOf(timeSlot);
     
-    // For now, highlight multiple consecutive slots to show duration
-    // In a real implementation, you would track the exact drop target position
-    if (dragOverSlot) {
-      const [dayId, timeSlot] = dragOverSlot.split('-', 2);
-      const timeIndex = timeSlots.indexOf(timeSlot);
-      
-      if (timeIndex >= 0) {
-        for (let i = 0; i < slotsNeeded && timeIndex + i < timeSlots.length; i++) {
-          slots.push(`${dayId}-${timeSlots[timeIndex + i]}`);
-        }
+    if (timeIndex >= 0) {
+      // Highlight consecutive slots based on appointment duration
+      for (let i = 0; i < slotsNeeded && timeIndex + i < timeSlots.length; i++) {
+        slots.push(`${dayId}-${timeSlots[timeIndex + i]}`);
       }
     }
     
@@ -245,6 +239,7 @@ export default function Schedule() {
     const appointmentId = parseInt(start.draggableId);
     const appointment = appointments.find(apt => apt.id === appointmentId);
     setDraggedAppointment(appointment || null);
+    setDragOverSlot(null); // Clear any existing hover state
   }, [appointments]);
 
   // Handle drag and drop
@@ -360,7 +355,7 @@ export default function Schedule() {
 
   return (
     <DragDropContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 relative">
         {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
@@ -556,7 +551,7 @@ export default function Schedule() {
                             (isDragging && getHighlightedSlots(draggedAppointment).includes(`${dayId}-${time}`));
                           
                           // Track hover for multi-slot highlighting
-                          if (snapshot.isDraggingOver && !dragOverSlot) {
+                          if (snapshot.isDraggingOver) {
                             setDragOverSlot(`${dayId}-${time}`);
                           }
                           
@@ -564,12 +559,15 @@ export default function Schedule() {
                             <div
                               ref={provided.innerRef}
                               {...provided.droppableProps}
-                            className={`border-r border-gray-200 last:border-r-0 relative transition-all duration-75 time-grid-row ${
-                              isHighlighted ? 'bg-blue-100 border-blue-400 shadow-sm' : 'hover:bg-gray-50'
+                            className={`border-r border-gray-200 last:border-r-0 relative transition-all duration-150 time-grid-row ${
+                              isHighlighted ? 'bg-blue-200 border-blue-500 shadow-md ring-2 ring-blue-300' : 'hover:bg-gray-50'
                             }`}
                             style={{ height: '40px', minHeight: '40px', maxHeight: '40px' }} // CHANGED: Fixed height
                             onMouseEnter={() => {
                               if (isDragging) setDragOverSlot(`${dayId}-${time}`);
+                            }}
+                            onMouseLeave={() => {
+                              // Don't clear drag over state immediately to prevent flickering
                             }}
                           >
                             {dayAppointments.map((appointment, index) => {
@@ -588,23 +586,25 @@ export default function Schedule() {
                                       {...provided.draggableProps}
                                       {...provided.dragHandleProps}
                                       className={`absolute inset-x-1 p-2 rounded ${serviceTheme} text-white text-xs cursor-pointer transition-transform duration-100 ease-out time-grid-appointment ${
-                                        snapshot.isDragging ? 'shadow-xl z-50 opacity-90' : 'hover:shadow-md'
+                                        snapshot.isDragging ? 'shadow-xl opacity-80' : 'hover:shadow-md'
                                       }`}
                                       style={{ 
-                                        ...provided.draggableProps.style,
-                                        // Maintain full size during drag and improve positioning
+                                        // Normal positioning when not dragging
                                         ...(!snapshot.isDragging && {
                                           height: `${getAppointmentHeight(appointment)}px`,
                                           top: `${getAppointmentPosition(appointment)}%`
                                         }),
-                                        // Keep original size during drag
+                                        // Minimize displacement during drag
                                         ...(snapshot.isDragging && {
-                                          minWidth: '180px',
-                                          width: 'auto',
-                                          height: '60px',
-                                          transform: provided.draggableProps.style?.transform,
+                                          ...provided.draggableProps.style,
+                                          width: '180px',
+                                          height: '50px',
+                                          pointerEvents: 'none',
+                                          zIndex: 9999,
+                                          position: 'fixed',
                                         }),
-                                        zIndex: snapshot.isDragging ? 1000 : 1
+                                        // Base z-index when not dragging
+                                        ...(!snapshot.isDragging && { zIndex: 1 })
                                       }}
                                     >
                                       <div className="font-medium truncate">{appointment.customerName}</div>
